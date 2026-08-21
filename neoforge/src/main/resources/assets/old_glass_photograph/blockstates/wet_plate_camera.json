@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"old_glass_photograph:block/wet_plate_camera"},"facing=east":{"model":"old_glass_photograph:block/wet_plate_camera","y":90},"facing=south":{"model":"old_glass_photograph:block/wet_plate_camera","y":180},"facing=west":{"model":"old_glass_photograph:block/wet_plate_camera","y":270}}}
