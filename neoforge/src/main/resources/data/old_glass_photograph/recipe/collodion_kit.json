@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "minecraft:gunpowder" },
+    { "item": "minecraft:sugar" },
+    { "item": "minecraft:gold_nugget" }
+  ],
+  "result": {
+    "id": "old_glass_photograph:collodion_kit",
+    "count": 4
+  }
+}
