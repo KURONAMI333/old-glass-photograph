@@ -1,0 +1,173 @@
+package com.kuronami.oldglassphotograph.block;
+
+import com.kuronami.oldglassphotograph.OgpRegistry;
+import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
+import com.kuronami.oldglassphotograph.item.GlassPlateItem;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * 設置型の湿板カメラ。<b>構図は設置位置と FACING だけで決まる</b>（kura 受理済み）。
+ *
+ * <p>この塊で通す操作:
+ * <ul>
+ *   <li>Glass Plate を持って右クリック = 装填</li>
+ *   <li>素手で右クリック = 撮影（client へ capture 要求 -> 潜像を装填 Plate へ書く）</li>
+ *   <li>スニーク + 素手で右クリック = 装填 Plate の取り出し</li>
+ * </ul>
+ * 露光時間・Viewfinder・暗室工程はまだ無い。
+ */
+public class WetPlateCameraBlock extends BaseEntityBlock {
+
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
+
+    public static final MapCodec<WetPlateCameraBlock> CODEC = simpleCodec(WetPlateCameraBlock::new);
+
+    public WetPlateCameraBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected MapCodec<? extends BaseEntityBlock> codec() {
+        return CODEC;
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        // 設置者と同じ向き = 設置者の背中側を撮る。設置してそのまま前を撮れる形にする。
+        return defaultBlockState().setValue(FACING, context.getHorizontalDirection());
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new WetPlateCameraBlockEntity(pos, state);
+    }
+
+    @Override
+    public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state,
+                                                                           BlockEntityType<T> type) {
+        if (level.isClientSide()) {
+            return null;
+        }
+        return createTickerHelper(type, OgpRegistry.CAMERA_BLOCK_ENTITY.get(),
+                WetPlateCameraBlockEntity::serverTick);
+    }
+
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+                                          Player player, InteractionHand hand, BlockHitResult hit) {
+        if (!stack.is(OgpRegistry.GLASS_PLATE.get())) {
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
+        }
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (!(level.getBlockEntity(pos) instanceof WetPlateCameraBlockEntity camera)
+                || !(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.FAIL;
+        }
+        if (camera.hasPlate()) {
+            serverPlayer.sendSystemMessage(Component.literal("A plate is already loaded."), true);
+            return InteractionResult.FAIL;
+        }
+        // 入れてよいのは「濡れていて、まだ潜像を持たない」板だけ。それ以外は理由を出して
+        // 何も消費しない（板が黙って失われる経路を作らない）。
+        if (GlassPlateItem.resolveDryOut(stack, level.getGameTime())) {
+            serverPlayer.sendSystemMessage(Component.literal(
+                    "The collodion dried out. The plate is clean again."), true);
+            return InteractionResult.FAIL;
+        }
+        if (GlassPlateItem.isExposed(stack)) {
+            serverPlayer.sendSystemMessage(Component.literal(
+                    "This plate already holds a latent image. Develop it first."), true);
+            return InteractionResult.FAIL;
+        }
+        if (!GlassPlateItem.isReadyToLoad(stack)) {
+            serverPlayer.sendSystemMessage(Component.literal(
+                    "This plate is not sensitized. Coat it with a Collodion Kit first."), true);
+            return InteractionResult.FAIL;
+        }
+        camera.setPlate(stack.split(1));
+        serverPlayer.sendSystemMessage(Component.literal(
+                "Plate loaded. Hold right-click to expose."), true);
+        return InteractionResult.SUCCESS;
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+                                               BlockHitResult hit) {
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (!(level.getBlockEntity(pos) instanceof WetPlateCameraBlockEntity camera)
+                || !(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.FAIL;
+        }
+        if (player.isShiftKeyDown()) {
+            return ejectPlate(camera, player);
+        }
+        // 板が無くても・撮れない板でもファインダーには入る。構図と、いま動いているものを
+        // 撮る前に見られること自体が要件（MODJAM_DECISIONS_OGP.md §2 Fun 案1）。
+        PhotoCaptureController.requestCapture(serverPlayer, camera, pos, state.getValue(FACING));
+        return InteractionResult.SUCCESS;
+    }
+
+    private static InteractionResult ejectPlate(WetPlateCameraBlockEntity camera, Player player) {
+        if (!camera.hasPlate()) {
+            return InteractionResult.FAIL;
+        }
+        ItemStack plate = camera.getPlate();
+        // カメラの中では inventoryTick が回らないので、出す時点で乾燥を清算する。
+        // ここを抜かすと、乾いた板が濡れた表示のまま手に戻る（1 tick 後に直るが、
+        // チェストへ直行させると次に持ち出すまで古い秒が出たままになる）。
+        if (GlassPlateItem.resolveDryOut(plate, player.level().getGameTime())
+                && player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.sendSystemMessage(Component.literal(
+                    "The plate dried out inside the camera. The plate is clean again."), true);
+        }
+        camera.setPlate(ItemStack.EMPTY);
+        camera.clearCapture();
+        if (!player.addItem(plate)) {
+            player.drop(plate, false);
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    @Override
+    protected void affectNeighborsAfterRemoval(BlockState state, net.minecraft.server.level.ServerLevel level,
+                                               BlockPos pos, boolean movedByPiston) {
+        // 破壊時は装填 Plate を落とす。潜像を持っていても失われない（非破壊原則）。
+        if (level.getBlockEntity(pos) instanceof WetPlateCameraBlockEntity camera && camera.hasPlate()) {
+            net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), camera.getPlate());
+            camera.setPlate(ItemStack.EMPTY);
+        }
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+    }
+}
