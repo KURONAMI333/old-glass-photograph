@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "CPC",
+    "PPP"
+  ],
+  "key": {
+    "G": { "item": "minecraft:glass" },
+    "C": { "item": "minecraft:copper_ingot" },
+    "P": { "tag": "minecraft:planks" }
+  },
+  "result": {
+    "id": "old_glass_photograph:wet_plate_camera",
+    "count": 1
+  }
+}
