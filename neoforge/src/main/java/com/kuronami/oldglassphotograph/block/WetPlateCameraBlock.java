@@ -126,8 +126,9 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
      * player が破壊した瞬間（実際の除去より前）に対になる半分も静かに消す
      * （vanilla {@code DoorBlock.playerWillDestroy} と同じ型。どちらを壊しても両方消える）。
      *
-     * <p>下半分がここで消えれば、既存の {@link #affectNeighborsAfterRemoval} が装填 Plate を
-     * 救出する（下半分を直接壊した経路と全く同じ除去処理を通る）。
+     * <p>装填 Plate の救出はここではなく {@link WetPlateCameraBlockEntity#preRemoveSideEffects}
+     * が持つ（BE が生きている間に効く hook。どちらの半分をどう壊しても、下半分の BE が
+     * 除去されるところで必ず通る）。
      */
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
@@ -244,16 +245,5 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
             player.drop(plate, false);
         }
         return InteractionResult.SUCCESS;
-    }
-
-    @Override
-    protected void affectNeighborsAfterRemoval(BlockState state, net.minecraft.server.level.ServerLevel level,
-                                               BlockPos pos, boolean movedByPiston) {
-        // 破壊時は装填 Plate を落とす。潜像を持っていても失われない（非破壊原則）。
-        if (level.getBlockEntity(pos) instanceof WetPlateCameraBlockEntity camera && camera.hasPlate()) {
-            net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), camera.getPlate());
-            camera.setPlate(ItemStack.EMPTY);
-        }
-        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 }

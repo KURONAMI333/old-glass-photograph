@@ -81,6 +81,27 @@ public class WetPlateCameraBlockEntity extends BlockEntity {
         }
     }
 
+    /**
+     * ブロック除去の直前、BE がまだ生きている間に呼ばれる（vanilla の
+     * {@code Container} が中身をここで落とすのと同じ hook）。
+     *
+     * <p>{@code Block.affectNeighborsAfterRemoval} は使わない。
+     * {@code LevelChunk.setBlockState} は BE をチャンクの map から外してから
+     * それを呼ぶので、その中で {@code level.getBlockEntity(pos)} を引いても
+     * 常に null になる（旧 1 ブロック実装でも実際には効いていなかった）。
+     * ここなら {@code this.level} も装填 Plate もまだ有効。
+     * 破壊経路（player 直接・{@code playerWillDestroy} の対消滅・爆発・
+     * ピストン・他 MOD）を問わず、この BE が除去されるところで必ず通る。
+     */
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        if (hasPlate() && this.level != null) {
+            net.minecraft.world.Containers.dropItemStack(this.level, pos.getX(), pos.getY(), pos.getZ(), plate);
+            this.plate = ItemStack.EMPTY;
+        }
+        super.preRemoveSideEffects(pos, state);
+    }
+
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
