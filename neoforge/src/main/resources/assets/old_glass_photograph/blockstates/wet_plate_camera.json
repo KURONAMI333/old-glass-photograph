@@ -1,1 +1,10 @@
-{"variants":{"facing=north":{"model":"old_glass_photograph:block/wet_plate_camera"},"facing=east":{"model":"old_glass_photograph:block/wet_plate_camera","y":90},"facing=south":{"model":"old_glass_photograph:block/wet_plate_camera","y":180},"facing=west":{"model":"old_glass_photograph:block/wet_plate_camera","y":270}}}
+{"variants":{
+  "facing=north,half=lower":{"model":"old_glass_photograph:block/wet_plate_camera_lower"},
+  "facing=east,half=lower":{"model":"old_glass_photograph:block/wet_plate_camera_lower","y":90},
+  "facing=south,half=lower":{"model":"old_glass_photograph:block/wet_plate_camera_lower","y":180},
+  "facing=west,half=lower":{"model":"old_glass_photograph:block/wet_plate_camera_lower","y":270},
+  "facing=north,half=upper":{"model":"old_glass_photograph:block/wet_plate_camera_upper"},
+  "facing=east,half=upper":{"model":"old_glass_photograph:block/wet_plate_camera_upper","y":90},
+  "facing=south,half=upper":{"model":"old_glass_photograph:block/wet_plate_camera_upper","y":180},
+  "facing=west,half=upper":{"model":"old_glass_photograph:block/wet_plate_camera_upper","y":270}
+}}
