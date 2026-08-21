@@ -104,10 +104,13 @@ public final class PhotoCaptureController {
      * {@code PEEK_ARM_TICKS} を超えて押し続けた時だけ。短く押せば構図と動いているものを見るだけで、
      * 板も薬品も消費しない（{@code MODJAM_DECISIONS_OGP.md} §2 Fun 案1）。
      *
+     * @param entityPos カメラ BlockEntity の実位置（下半分）。session の再検索に使う。
+     * @param lensPos   撮影原点（上半分＝レンズの位置）。光量サンプリングと client の
+     *                  ファインダー位置に使う（{@code MODJAM_DECISIONS_OGP.md} §18）。
      * @return 露光が armed で始まったか（false でもファインダーには入っている）
      */
     public static boolean requestCapture(ServerPlayer player, WetPlateCameraBlockEntity camera,
-                                         BlockPos pos, Direction facing) {
+                                         BlockPos entityPos, BlockPos lensPos, Direction facing) {
         if (camera.isAwaitingCapture()) {
             player.sendSystemMessage(Component.literal("Exposure already in progress."), true);
             return false;
@@ -129,7 +132,7 @@ public final class PhotoCaptureController {
             blocked = "This plate is not sensitized. Coat it with a Collodion Kit first.";
         }
 
-        int light = ExposureModel.sampleLight(player.level(), pos, facing);
+        int light = ExposureModel.sampleLight(player.level(), lensPos, facing);
         // この明るさで目標に届くまでの tick。上限を超える暗さでも露光自体は許す
         // （上限まで押して届かなければ露光不足。板は写真になる）。
         int required = ExposureModel.requiredTicks(light);
@@ -137,17 +140,17 @@ public final class PhotoCaptureController {
         int token = 0;
         if (blocked == null) {
             token = NEXT_TOKEN.getAndIncrement();
-            PENDING.put(token, new Session(pos, light));
+            PENDING.put(token, new Session(entityPos, light));
             camera.beginCapture(token, player.getUUID());
         }
         PacketDistributor.sendToPlayer(player, new PhotoCaptureRequestPayload(
-                token, pos, facing.toYRot(), 0.0F, settleTicks,
+                token, lensPos, facing.toYRot(), 0.0F, settleTicks,
                 window, intervalTicks));
         player.sendSystemMessage(Component.literal(
                 blocked != null ? blocked : viewfinderHint(light, required)), true);
-        LOG.info("[ogp] viewfinder pos={} facing={} light={} required={} window={} armed={} token={} "
-                        + "settle={} interval={}",
-                pos, facing, light, required, window, blocked == null, token,
+        LOG.info("[ogp] viewfinder entityPos={} lensPos={} facing={} light={} required={} window={} armed={} "
+                        + "token={} settle={} interval={}",
+                entityPos, lensPos, facing, light, required, window, blocked == null, token,
                 settleTicks, intervalTicks);
         return token != 0;
     }

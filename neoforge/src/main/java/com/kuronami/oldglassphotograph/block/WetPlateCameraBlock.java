@@ -8,14 +8,19 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -23,12 +28,17 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 
 /**
  * 設置型の湿板カメラ。<b>構図は設置位置と FACING だけで決まる</b>（kura 受理済み）。
+ * 高さ2ブロック（1×1×2）の構造物（{@code MODJAM_DECISIONS_OGP.md} §18）。
+ * vanilla の {@link net.minecraft.world.level.block.DoorBlock} /
+ * {@link net.minecraft.world.level.block.DoublePlantBlock} と同じ型で、
+ * 1アイテムで下＝台・上＝カメラ本体の2ブロックを置く。
  *
  * <p>この塊で通す操作:
  * <ul>
@@ -36,17 +46,22 @@ import org.jspecify.annotations.Nullable;
  *   <li>素手で右クリック = 撮影（client へ capture 要求 -> 潜像を装填 Plate へ書く）</li>
  *   <li>スニーク + 素手で右クリック = 装填 Plate の取り出し</li>
  * </ul>
+ * <b>BlockEntity は下半分だけが持つ。</b>上半分への操作は全て下半分へ転送する
+ * （player はレンズのある上半分を触るので、上半分でも同じように効くことが必須）。
  * 露光時間・Viewfinder・暗室工程はまだ無い。
  */
 public class WetPlateCameraBlock extends BaseEntityBlock {
 
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
 
     public static final MapCodec<WetPlateCameraBlock> CODEC = simpleCodec(WetPlateCameraBlock::new);
 
     public WetPlateCameraBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+        registerDefaultState(stateDefinition.any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(HALF, DoubleBlockHalf.LOWER));
     }
 
     @Override
@@ -56,17 +71,84 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, HALF);
+    }
+
+    /** 下半分の位置。上半分を渡されたら1つ下げる。どちらの半分に対しても呼べる。 */
+    private static BlockPos basePos(BlockPos pos, BlockState state) {
+        return state.getValue(HALF) == DoubleBlockHalf.UPPER ? pos.below() : pos;
     }
 
     @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
+    public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
+        BlockPos pos = context.getClickedPos();
+        Level level = context.getLevel();
+        // 天井が低い場所には置けない（上に空きが無い = above が置換できない）。
+        if (pos.getY() >= level.getMaxY() || !level.getBlockState(pos.above()).canBeReplaced(context)) {
+            return null;
+        }
         // 設置者と同じ向き = 設置者の背中側を撮る。設置してそのまま前を撮れる形にする。
-        return defaultBlockState().setValue(FACING, context.getHorizontalDirection());
+        return defaultBlockState()
+                .setValue(FACING, context.getHorizontalDirection())
+                .setValue(HALF, DoubleBlockHalf.LOWER);
     }
 
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer,
+                            ItemStack stack) {
+        // 1アイテムで2ブロック分を置く（vanilla のドア/ベッドと同じ型）。下＝台、上＝カメラ本体。
+        level.setBlock(pos.above(), state.setValue(HALF, DoubleBlockHalf.UPPER), 3);
+    }
+
+    @Override
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        if (state.getValue(HALF) == DoubleBlockHalf.UPPER) {
+            BlockState below = level.getBlockState(pos.below());
+            return below.is(this) && below.getValue(HALF) == DoubleBlockHalf.LOWER;
+        }
+        return super.canSurvive(state, level, pos);
+    }
+
+    @Override
+    protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks, BlockPos pos,
+                                     Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState,
+                                     RandomSource random) {
+        // 下が消えた上半分は独りで浮けない（DoublePlantBlock と同じ物理フォールバック。
+        // ピストン・爆発など playerWillDestroy を通らない除去の受け皿）。
+        if (state.getValue(HALF) == DoubleBlockHalf.UPPER && directionToNeighbour == Direction.DOWN
+                && !state.canSurvive(level, pos)) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, level, ticks, pos, directionToNeighbour, neighbourPos, neighbourState, random);
+    }
+
+    /**
+     * player が破壊した瞬間（実際の除去より前）に対になる半分も静かに消す
+     * （vanilla {@code DoorBlock.playerWillDestroy} と同じ型。どちらを壊しても両方消える）。
+     *
+     * <p>下半分がここで消えれば、既存の {@link #affectNeighborsAfterRemoval} が装填 Plate を
+     * 救出する（下半分を直接壊した経路と全く同じ除去処理を通る）。
+     */
+    @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide()) {
+            DoubleBlockHalf half = state.getValue(HALF);
+            BlockPos otherPos = half == DoubleBlockHalf.LOWER ? pos.above() : pos.below();
+            BlockState otherState = level.getBlockState(otherPos);
+            if (otherState.is(this) && otherState.getValue(HALF) != half) {
+                level.setBlock(otherPos, Blocks.AIR.defaultBlockState(), 35);
+                level.levelEvent(player, 2001, otherPos, Block.getId(otherState));
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
+    public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // BlockEntity は下半分だけが持つ。
+        if (state.getValue(HALF) == DoubleBlockHalf.UPPER) {
+            return null;
+        }
         return new WetPlateCameraBlockEntity(pos, state);
     }
 
@@ -89,7 +171,8 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (!(level.getBlockEntity(pos) instanceof WetPlateCameraBlockEntity camera)
+        BlockPos basePos = basePos(pos, state);
+        if (!(level.getBlockEntity(basePos) instanceof WetPlateCameraBlockEntity camera)
                 || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.FAIL;
         }
@@ -126,7 +209,8 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (!(level.getBlockEntity(pos) instanceof WetPlateCameraBlockEntity camera)
+        BlockPos basePos = basePos(pos, state);
+        if (!(level.getBlockEntity(basePos) instanceof WetPlateCameraBlockEntity camera)
                 || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.FAIL;
         }
@@ -135,7 +219,9 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         }
         // 板が無くても・撮れない板でもファインダーには入る。構図と、いま動いているものを
         // 撮る前に見られること自体が要件（MODJAM_DECISIONS_OGP.md §2 Fun 案1）。
-        PhotoCaptureController.requestCapture(serverPlayer, camera, pos, state.getValue(FACING));
+        // 撮影原点はレンズのある上半分（basePos.above()）。下半分を右クリックしても同じ絵になる。
+        BlockPos lensPos = basePos.above();
+        PhotoCaptureController.requestCapture(serverPlayer, camera, basePos, lensPos, state.getValue(FACING));
         return InteractionResult.SUCCESS;
     }
 
