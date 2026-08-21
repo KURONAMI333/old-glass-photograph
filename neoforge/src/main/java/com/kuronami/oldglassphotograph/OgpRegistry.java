@@ -6,6 +6,7 @@ import com.kuronami.oldglassphotograph.block.WetPlateCameraBlockEntity;
 import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
+import com.kuronami.oldglassphotograph.item.PhotographItem;
 import com.kuronami.oldglassphotograph.item.WetPlateCameraBlockItem;
 import net.minecraft.world.item.BlockItem;
 import com.kuronami.oldglassphotograph.network.PhotoCaptureAbortPayload;
@@ -69,6 +70,12 @@ public final class OgpRegistry {
     public static final DeferredItem<GlassPlateItem> GLASS_PLATE = ITEMS.registerItem(
             "glass_plate",
             GlassPlateItem::new,
+            () -> new Item.Properties().stacksTo(1));
+
+    /** Finished wet-plate photograph; MapItem inheritance preserves vanilla map-data persistence and sync. */
+    public static final DeferredItem<PhotographItem> PHOTOGRAPH = ITEMS.registerItem(
+            "photograph",
+            PhotographItem::new,
             () -> new Item.Properties().stacksTo(1));
 
     /** 板の準備（洗浄 + コロジオン + 銀浴）を 1 操作にまとめた薬品。 */

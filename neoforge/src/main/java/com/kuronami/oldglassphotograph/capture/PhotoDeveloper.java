@@ -1,5 +1,6 @@
 package com.kuronami.oldglassphotograph.capture;
 
+import com.kuronami.oldglassphotograph.OgpRegistry;
 import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
 import net.minecraft.core.component.DataComponents;
@@ -7,7 +8,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.slf4j.Logger;
@@ -108,7 +108,7 @@ public final class PhotoDeveloper {
         MapId id = level.getFreeMapId();
         level.setMapData(id, locked);
 
-        ItemStack photo = new ItemStack(Items.FILLED_MAP);
+        ItemStack photo = new ItemStack(OgpRegistry.PHOTOGRAPH.get());
         photo.set(DataComponents.MAP_ID, id);
 
         plate.shrink(1);

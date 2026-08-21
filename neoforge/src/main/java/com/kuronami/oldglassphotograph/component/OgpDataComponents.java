@@ -7,20 +7,20 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-/** OGP の data component 登録。 */
+/** OGP data-component registration. */
 public final class OgpDataComponents {
 
     /**
-     * 潜像。
+     * Latent-image pixels are persistently encoded on the plate stack.
      *
-     * <p><b>stream codec を明示しない。</b> 26.2 の {@code DataComponentType.Builder#build()} は
-     * streamCodec が null のとき {@code ByteBufCodecs.fromCodecWithRegistries(codec)} を使うので、
-     * 既定のままで pixel も同期される（{@code MODJAM_DECISIONS_OGP.md} §5 の (c)）。
+     * <p>In 26.2, {@link DataComponentType.Builder#build()} generates a stream codec from the
+     * persistent codec via {@code ByteBufCodecs.fromCodecWithRegistries(codec)} when one is not
+     * explicitly supplied. Consequently these pixels retain their existing network synchronization
+     * behavior. See {@code MODJAM_DECISIONS_OGP.md} section 5(c).
      *
-     * <p>pixel を送らない stream codec を置くと、creative でプレートをスロット操作した瞬間に
-     * {@code handleSetCreativeModeSlot} が client 側の空の潜像で server を上書きし、
-     * 露光済みの板が黙って白紙に戻る。代償は container 同期のたびに 16KB が飛ぶことだが、
-     * 潜像を持った板が存在するのは露光から現像までの短い区間だけ。
+     * <p>A stream codec that omitted pixels would let a Creative-mode slot update overwrite the
+     * server's latent image with the client's empty copy. The existing codec avoids that loss at
+     * the cost of sending 16 KiB during the short exposed-to-developed interval.
      */
     public static final DeferredRegister<DataComponentType<?>> COMPONENTS =
             DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, OldGlassPhotograph.MODID);
@@ -31,7 +31,7 @@ public final class OgpDataComponents {
                             .persistent(LatentImage.CODEC)
                             .build());
 
-    /** 板の工程状態と乾燥までの残り。tooltip と表示名がこれを読む。 */
+    /** Plate process stage and wetness countdown, shown in the plate name and tooltip. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<PlateProcess>> PLATE_PROCESS =
             COMPONENTS.register("plate_process",
                     () -> DataComponentType.<PlateProcess>builder()
