@@ -11,5 +11,6 @@ public final class OgpClient {
 
     public static void init(IEventBus modBus) {
         PhotoCaptureClient.init(modBus);
+        modBus.addListener(PlateStageProperty::register);
     }
 }
