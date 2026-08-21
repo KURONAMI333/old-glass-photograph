@@ -1,1 +1,21 @@
-{"model":{"type":"minecraft:model","model":"old_glass_photograph:item/glass_plate"}}
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "old_glass_photograph:plate_stage",
+    "cases": [
+      {
+        "when": "sensitized",
+        "model": {"type": "minecraft:model", "model": "old_glass_photograph:item/glass_plate_sensitized"}
+      },
+      {
+        "when": "exposed",
+        "model": {"type": "minecraft:model", "model": "old_glass_photograph:item/glass_plate_sensitized"}
+      },
+      {
+        "when": "developed",
+        "model": {"type": "minecraft:model", "model": "old_glass_photograph:item/glass_plate_developed"}
+      }
+    ],
+    "fallback": {"type": "minecraft:model", "model": "old_glass_photograph:item/glass_plate"}
+  }
+}
