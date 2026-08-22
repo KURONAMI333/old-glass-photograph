@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * Glass Plate。1 枚が 1 スタック（{@code stacksTo(1)}）で、工程状態と潜像を data component に持つ。
  *
  * <p>カスタム GUI は作らない。<b>暗所を要する塗布と現像は {@link DarkroomTableBlock} の中で回り</b>、
- * 板を持って台を右クリックすると板が箱へ入って蓋が閉じる（{@code MODJAM_DECISIONS_OGP.md} §30）。
+ * 箱を開けて板を入れ、蓋を閉じると工程が始まる（{@code MODJAM_DECISIONS_OGP.md} §30・B-2）。
  * 暗いのは箱の中なので、周りの明るさは工程に一切効かない。
  *
  * <p>手に持ったまま長押しするのは<b>定着だけ</b>。史実でも定着は暗室を出てから行える。
@@ -134,7 +134,8 @@ public class GlassPlateItem extends Item {
         if (step.inDarkroomBox()) {
             // 塗布と現像は暗箱の中でしか進まない。手の中では何も起きない。
             if (!level.isClientSide()) {
-                say(player, "Put the plate into a Darkroom Table with " + step.chemicalName() + ".");
+                say(player, "Open a Darkroom Table, put the plate in, then close the lid. You need "
+                        + step.chemicalName() + ".");
             }
             return InteractionResult.FAIL;
         }
@@ -242,17 +243,17 @@ public class GlassPlateItem extends Item {
         super.appendHoverText(stack, context, display, adder, flag);
         PlateProcess p = process(stack);
         if (p == null) {
-            adder.accept(line("Put it into a Darkroom Table with a Collodion Kit."));
+            adder.accept(line("Coat it in a Darkroom Table. Needs a Collodion Kit."));
             fogged(stack, adder);
             return;
         }
         switch (p.stage()) {
             case SENSITIZED -> {
-                adder.accept(line("Wet. Load it into a Wet Plate Camera."));
+                adder.accept(line("Wet. Load it into a Wet Plate Camera, then shoot from behind it."));
                 adder.accept(wetness(p));
             }
             case EXPOSED -> {
-                adder.accept(line("Latent image. Put it into a Darkroom Table with Developer."));
+                adder.accept(line("Latent image. Develop it in a Darkroom Table. Needs Developer."));
                 adder.accept(wetness(p));
             }
             case DEVELOPED -> adder.accept(line("Hold right-click with Fixer to finish the photograph."));

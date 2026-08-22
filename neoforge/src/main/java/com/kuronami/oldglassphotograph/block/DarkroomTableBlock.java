@@ -41,11 +41,16 @@ import org.jspecify.annotations.Nullable;
  * 野外の写真家が引いていたのは暗室ワゴンと携帯テントであって暗い部屋ではないので、
  * 遮光された容器そのものを再現するほうが史実にも近い（同 §10 の一次資料）。
  *
- * <p>操作はレクターン／ジュークボックスと同じ右クリックの出し入れだけで、GUI は持たない（§10 維持）:
- * <ul>
- *   <li>板を持って右クリック = 板が入り、蓋が閉じて工程が始まる（薬品を 1 個消費）</li>
- *   <li>素手で右クリック = 蓋の開閉。工程を終えた板が見えているならその板を回収</li>
- * </ul>
+ * <p>操作はレクターン／ジュークボックスと同じ右クリックの出し入れだけで、GUI は持たない（§10 維持）。
+ * <b>開ける → 入れる → 閉じる</b>の 3 手（2026-08-22 kura 指示 B-2。
+ * 蓋が閉じたまま板が入ってしまうのは箱として筋が通らない）:
+ * <ol>
+ *   <li>閉じた箱を素手で右クリック = <b>開く</b></li>
+ *   <li>開いた箱に板を持って右クリック = <b>板が入る</b>（工程はまだ始まらない・薬品も減らない）</li>
+ *   <li>開いた箱を素手で右クリック = <b>閉じる。ここで工程が始まる</b>（薬品を 1 個消費）</li>
+ *   <li>終わったら開けて像を見る。もう一度で回収</li>
+ * </ol>
+ * 入れた板をやめたくなったら<b>スニーク + 素手</b>で取り戻せる（工程が走っていない間だけ）。
  *
  * <p>箱で回すのは<b>塗布（PREPARE）と現像（DEVELOP）の 2 つ</b>。
  * 定着は史実でも暗室の外でよいので手に持ったまま行う。
@@ -113,7 +118,8 @@ public class DarkroomTableBlock extends BaseEntityBlock {
     // ------------------------------------------------------------------ 操作
 
     /**
-     * 板を持って右クリック。
+     * 板を持って右クリック = <b>入れるだけ</b>。工程は始まらず、薬品も減らない
+     * （始まるのは蓋を閉じた時＝{@link #useWithoutItem}）。
      *
      * <p>箱の仕事でない板（露光待ち・定着待ち・乾いた板）は {@link InteractionResult#PASS} で
      * 手の中の操作へ落とす。判定は<b>手の板だけ</b>で決まるので client と server で必ず一致する。
@@ -134,29 +140,31 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof DarkroomTableBlockEntity table)) {
             return InteractionResult.FAIL;
         }
+        if (!state.getValue(OPEN)) {
+            say(player, "The lid is shut. Right-click with an empty hand to open the box.");
+            return InteractionResult.CONSUME;
+        }
         if (table.hasPlate()) {
             say(player, table.isWorking()
                     ? "The box is working on a plate."
-                    : "A plate is waiting inside. Take it out first.");
+                    : "A plate is already inside.");
             return InteractionResult.CONSUME;
         }
-        if (!GlassPlateItem.hasChemical(player, step)) {
-            say(player, "You need " + step.chemicalName() + ".");
-            return InteractionResult.CONSUME;
-        }
-        if (!GlassPlateItem.consumeChemical(player, step)) {
-            return InteractionResult.CONSUME;
-        }
-        table.beginProcess(stack.split(1), step);
-        BlockState closed = state.setValue(OPEN, false).setValue(CONTENT, Content.PLATE);
-        level.setBlock(pos, closed, Block.UPDATE_ALL);
-        playLid(level, pos, false);
-        say(player, step.startMessage());
+        table.insertPlate(stack.split(1));
+        level.setBlock(pos, state.setValue(CONTENT, Content.PLATE), Block.UPDATE_ALL);
+        say(player, "The plate is in. Close the lid to start: right-click with an empty hand.");
         return InteractionResult.SUCCESS;
     }
 
     /**
-     * 素手（または箱に関係ない物を持って）右クリック。蓋の開閉と、終わった板の回収。
+     * 素手（または箱に関係ない物を持って）右クリック。蓋の開閉と、板の回収。
+     *
+     * <ul>
+     *   <li>閉じている → 開く</li>
+     *   <li>開いていて取り出し待ちの板がある → その板を回収（蓋は開いたまま）</li>
+     *   <li>開いている → 閉じる。中に始めていない板があればここで工程が始まる</li>
+     *   <li>スニーク + 開いている + 走っていない板 → 入れた板を取り戻す</li>
+     * </ul>
      *
      * <p>工程中でも蓋は開く。開けても板は失われず工程も止まらない（§30 の「失敗を増やさない」）。
      * 入るのは光だけで、その分だけ写真の痕跡が濃くなる。
@@ -170,29 +178,65 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof DarkroomTableBlockEntity table)) {
             return InteractionResult.FAIL;
         }
+        long gameTime = level.getGameTime();
         if (!state.getValue(OPEN)) {
             level.setBlock(pos, state.setValue(OPEN, true), Block.UPDATE_ALL);
             playLid(level, pos, true);
             if (table.isWorking()) {
                 say(player, "Light is getting in. The plate will fog.");
+            } else if (!table.hasPlate()) {
+                say(player, "The box is open. Right-click with a plate to put it in.");
+            } else if (!table.isAwaitingPickup(gameTime)) {
+                // 入れたまま閉じずに開け直した板。取り出し待ちの板には何も言わない
+                // （像が見えているので、次のクリックで取れることは絵で分かる）。
+                say(player, "A plate is waiting. Close the lid to start.");
             }
             return InteractionResult.SUCCESS;
         }
-        if (table.hasFinishedPlate()) {
-            ItemStack taken = table.removePlate();
-            // 箱の中では inventoryTick が回らないので、出す時点で乾燥を清算する
-            // （カメラの取り出しと同じ扱い。乾いた板が濡れた表示のまま手に戻るのを防ぐ）。
-            if (GlassPlateItem.resolveDryOut(taken, level.getGameTime())) {
-                say(player, "The collodion dried out inside the box. The plate is clean again.");
+        // 取り出し待ち（工程を終えた板・箱ではもう何もできない板）。
+        if (table.isAwaitingPickup(gameTime)) {
+            return takeOut(level, pos, state, player, table);
+        }
+        // 入れたがまだ始めていない板を取り戻す。工程が走っている間は取り出せない。
+        if (player.isShiftKeyDown() && table.hasPlate() && !table.isWorking()) {
+            return takeOut(level, pos, state, player, table);
+        }
+        // 閉じる。始めていない板が中にあるならここで工程が始まる。
+        GlassPlateItem.Step step = table.hasPlate() && !table.isWorking()
+                ? GlassPlateItem.nextStep(table.getPlate(), gameTime)
+                : null;
+        String note = null;
+        if (step != null && step.inDarkroomBox()) {
+            if (!GlassPlateItem.hasChemical(player, step)) {
+                // 蓋は閉じるが工程は始まらない。板は無事のまま中で待つ（§30 決定4 の
+                // 「失敗の状態を 1 つも増やさない」）。
+                note = "You need " + step.chemicalName() + ". The plate is safe inside.";
+            } else if (GlassPlateItem.consumeChemical(player, step)) {
+                table.startProcess(step);
+                note = step.startMessage();
             }
-            if (!player.addItem(taken)) {
-                player.drop(taken, false);
-            }
-            level.setBlock(pos, state.setValue(CONTENT, Content.EMPTY), Block.UPDATE_ALL);
-            return InteractionResult.SUCCESS;
         }
         level.setBlock(pos, state.setValue(OPEN, false), Block.UPDATE_ALL);
         playLid(level, pos, false);
+        if (note != null) {
+            say(player, note);
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    /** 中の板を player の手へ戻す。蓋は開いたままにする。 */
+    private static InteractionResult takeOut(Level level, BlockPos pos, BlockState state, Player player,
+                                             DarkroomTableBlockEntity table) {
+        ItemStack taken = table.removePlate();
+        // 箱の中では inventoryTick が回らないので、出す時点で乾燥を清算する
+        // （カメラの取り出しと同じ扱い。乾いた板が濡れた表示のまま手に戻るのを防ぐ）。
+        if (GlassPlateItem.resolveDryOut(taken, level.getGameTime())) {
+            say(player, "The collodion dried out inside the box. The plate is clean again.");
+        }
+        if (!player.addItem(taken)) {
+            player.drop(taken, false);
+        }
+        level.setBlock(pos, state.setValue(CONTENT, Content.EMPTY), Block.UPDATE_ALL);
         return InteractionResult.SUCCESS;
     }
 

@@ -52,14 +52,33 @@ public class DarkroomTableBlockEntity extends BlockEntity {
         return step != null;
     }
 
-    /** 工程を終えて回収を待っている板があるか。 */
-    public boolean hasFinishedPlate() {
-        return hasPlate() && step == null;
+    /**
+     * 箱の中の板が<b>取り出し待ち</b>か。工程を終えた板と、箱ではもう何もできない板の両方。
+     *
+     * <p>「入れたがまだ始めていない板」と区別が要る（{@code MODJAM_DECISIONS_OGP.md} B-2 で
+     * 開ける→入れる→閉じるの 3 手になったので、蓋を開けたまま板が待っている状態が生まれた）。
+     * 区別は板そのものから引く。始めていない板は箱の仕事（PREPARE / DEVELOP）が残っており、
+     * 終わった板は残っていない。フィールドを増やさないので保存・読み込みの往復でもずれない。
+     */
+    public boolean isAwaitingPickup(long gameTime) {
+        if (!hasPlate() || step != null) {
+            return false;
+        }
+        GlassPlateItem.Step next = GlassPlateItem.nextStep(plate, gameTime);
+        return next == null || !next.inDarkroomBox();
     }
 
-    /** 板を入れて工程を始める。薬品の消費は呼び出し側（ブロック）が済ませてある。 */
-    public void beginProcess(ItemStack incoming, GlassPlateItem.Step begun) {
+    /** 蓋の開いた箱へ板を入れる。工程はまだ始まらない（薬品も消費しない）。 */
+    public void insertPlate(ItemStack incoming) {
         this.plate = incoming;
+        this.step = null;
+        this.workTicks = 0;
+        this.fogTicks = 0;
+        setChanged();
+    }
+
+    /** 蓋を閉じて工程を始める。薬品の消費は呼び出し側（ブロック）が済ませてある。 */
+    public void startProcess(GlassPlateItem.Step begun) {
         this.step = begun;
         this.workTicks = begun.durationTicks();
         this.fogTicks = 0;
@@ -91,7 +110,7 @@ public class DarkroomTableBlockEntity extends BlockEntity {
             table.fogTicks++;
         }
         if (--table.workTicks > 0) {
-            // 毎 tick の setChanged() は要らない。beginProcess で既にチャンクは dirty で、
+            // 毎 tick の setChanged() は要らない。startProcess で既にチャンクは dirty で、
             // saveAdditional はその時点のフィールドをそのまま書く。
             return;
         }
