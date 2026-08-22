@@ -18,7 +18,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -49,8 +48,14 @@ import java.util.function.Consumer;
  *   <li>素のガラス板 + Collodion Kit を<b>Darkroom Table へ</b> → 4 秒 → 濡れた感光板（60 秒で乾く）</li>
  *   <li>カメラへ装填して露光（{@code WetPlateCameraBlock}）</li>
  *   <li>露光済み + Developer を<b>Darkroom Table へ</b> → 4 秒 → 像が確定し期限が止まる</li>
- *   <li>現像済み + Fixer を手に持って長押し → 6 秒 → 写真</li>
+ *   <li>現像済みの板と Fixer を<b>両手に 1 つずつ</b>持って長押し → 6 秒 → 写真
+ *       （どちらの手にどちらを持ってもよい。板を持っている側の手が振られる）</li>
  * </ol>
+ *
+ * <p><b>3 種類の薬液はどれも、使う瞬間に手に持っている。</b>塗布と現像は板が箱の中なので
+ * 薬品を手に持って蓋を閉じ、定着は板を手に持って振るので薬品はもう一方の手になる
+ * （{@code MODJAM_DECISIONS_OGP.md} §32-1 と 2026-08-23 kura 指示）。
+ * 持ち物から黙って引かれる経路は 1 つも無い。
  *
  * <p>薬品が無い・段が違う場合は<b>何も消費せず</b>理由だけを出す。
  */
@@ -187,7 +192,10 @@ public class GlassPlateItem extends Item {
             }
             return InteractionResult.FAIL;
         }
-        if (!hasChemical(player, step)) {
+        // 板を振る手は塞がっているので、薬品はもう一方の手にある。
+        // どちらの手に板を持っても成立する（vanilla は主手から順に試すので、
+        // 薬品が主手なら PASS で落ちて<b>板を持っている手でここへ来る</b>）。
+        if (otherHandWith(player, hand, step) == null) {
             if (!level.isClientSide()) {
                 say(player, Component.translatable("message.old_glass_photograph.plate.need_chemical",
                         step.chemicalName()));
@@ -244,9 +252,18 @@ public class GlassPlateItem extends Item {
         if (step != Step.FIX) {
             return stack;
         }
-        if (!consumeChemical(player, step)) {
+        // 振っている板はこの stack そのもの。<b>参照で</b>どちらの手かを決める
+        // （同じ段の板を両手に持っていても取り違えない）。
+        InteractionHand plateHand = player.getOffhandItem() == stack
+                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        InteractionHand chemicalHand = otherHandWith(player, plateHand, step);
+        if (chemicalHand == null) {
+            // 6 秒のあいだに持ち替えられた。板は無事のまま何も起きない。
+            say(player, Component.translatable("message.old_glass_photograph.plate.need_chemical",
+                    step.chemicalName()));
             return stack;
         }
+        player.getItemInHand(chemicalHand).shrink(1);
         if (PhotoDeveloper.develop(player, stack)) {
             // 揺する音が無音で切れると途中で止めたのか終わったのか分からない。終わりに 1 つだけ置く。
             level.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -409,29 +426,59 @@ public class GlassPlateItem extends Item {
     }
 
     /**
-     * 持ち物のどこかに薬品があるか。<b>定着（{@link Step#FIX}）専用。</b>
-     * Darkroom Table は {@link #holdsChemical} を使う（§32-1）。
+     * 板を持っている手と<b>反対の手</b>に、その工程の薬品があるか。定着（{@link Step#FIX}）で使う。
+     *
+     * <p>板を持つ手はどちらでもよい（2026-08-23 kura 指示）。持ち方の作法を覚えさせる意味は無く、
+     * 守りたい規律は「薬品を手に持っていること」の 1 点だけ。
+     *
+     * @return 薬品を持っている手。持っていなければ null
      */
-    public static boolean hasChemical(Player player, Step step) {
-        Item chemical = step.chemical();
-        return chemical != null && player.getInventory().contains(s -> s.is(chemical));
-    }
-
-    /** 持ち物から薬品を 1 個減らす。<b>定着専用。</b>箱は {@link #consumeHeldChemical}。 */
-    public static boolean consumeChemical(Player player, Step step) {
+    private static @Nullable InteractionHand otherHandWith(Player player, InteractionHand plateHand, Step step) {
         Item chemical = step.chemical();
         if (chemical == null) {
+            return null;
+        }
+        InteractionHand other = plateHand == InteractionHand.MAIN_HAND
+                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        return player.getItemInHand(other).is(chemical) ? other : null;
+    }
+
+    /**
+     * 薬品を<b>手に持っている</b>か（{@code MODJAM_DECISIONS_OGP.md} §32-1）。
+     *
+     * <p>Darkroom Table の蓋を閉じる時だけこちらを使う。持ち物のどこかから勝手に引くと、
+     * 何が減ったのかが player に見えない。板は箱の中なので両手とも空いており、
+     * 主手・逆手のどちらで持っていても認める（どちらかでしか通らないほうが分かりにくい）。
+     *
+     * <p>定着（{@link Step#FIX}）は板が手にあるので {@link #otherHandWith} が受け持つ。
+     * どちらも「使う瞬間に手に持っている」ことは同じで、空いている手が違うだけ。
+     */
+    public static boolean holdsChemical(Player player, Step step) {
+        return chemicalHand(player, step) != null;
+    }
+
+    /** 手に持っている薬品を 1 個減らす。持っていなければ何もせず false。 */
+    public static boolean consumeHeldChemical(Player player, Step step) {
+        InteractionHand hand = chemicalHand(player, step);
+        if (hand == null) {
             return false;
         }
-        Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            ItemStack slot = inventory.getItem(i);
-            if (slot.is(chemical)) {
-                slot.shrink(1);
-                return true;
-            }
+        player.getItemInHand(hand).shrink(1);
+        return true;
+    }
+
+    private static @Nullable InteractionHand chemicalHand(Player player, Step step) {
+        Item chemical = step.chemical();
+        if (chemical == null) {
+            return null;
         }
-        return false;
+        if (player.getMainHandItem().is(chemical)) {
+            return InteractionHand.MAIN_HAND;
+        }
+        if (player.getOffhandItem().is(chemical)) {
+            return InteractionHand.OFF_HAND;
+        }
+        return null;
     }
 
     private static void say(Player player, Component text) {
