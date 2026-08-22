@@ -1,6 +1,6 @@
 # Old Glass Photograph
 
-> 19世紀の湿板コロジオン写真をゲーム内工程として再現する MOD。専用 GUI は無く、湿板カメラを設置してブロックとアイテムだけで完結する。
+> Recreates 19th-century wet plate collodion photography as an in-world process. No custom interface anywhere in the loop.
 
 [![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-lightgrey.svg)](LICENSE)
 
