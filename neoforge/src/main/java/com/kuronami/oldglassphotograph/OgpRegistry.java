@@ -60,9 +60,18 @@ public final class OgpRegistry {
             WetPlateCameraBlock::new,
             () -> BlockBehaviour.Properties.of().strength(1.5F).sound(SoundType.WOOD));
 
+    /**
+     * {@code useBlockDescriptionPrefix} が要る: 26.2 の {@link net.minecraft.world.item.BlockItem} は
+     * {@code getDescriptionId} を上書きしない。翻訳キーは {@code Item.Properties} が持っていて、
+     * 既定は {@code ITEM_DESCRIPTION_ID}＝{@code item.<ns>.<path>} になる。
+     * これを付けないと lang の {@code block.old_glass_photograph.wet_plate_camera} を引かず、
+     * 内部名がそのまま表示される（vanilla のブロックアイテムと NeoForge の
+     * {@code registerSimpleBlockItem} は必ずこれを付けている）。
+     */
     public static final DeferredItem<WetPlateCameraBlockItem> WET_PLATE_CAMERA_ITEM = ITEMS.registerItem(
             "wet_plate_camera",
-            properties -> new WetPlateCameraBlockItem(WET_PLATE_CAMERA.get(), properties));
+            properties -> new WetPlateCameraBlockItem(
+                    WET_PLATE_CAMERA.get(), properties.useBlockDescriptionPrefix()));
 
     /**
      * 携帯暗箱。<b>板を中へ入れて蓋を閉じると</b>準備と現像が進む
@@ -76,9 +85,10 @@ public final class OgpRegistry {
             DarkroomTableBlock::new,
             () -> BlockBehaviour.Properties.of().strength(2.0F).sound(SoundType.WOOD).noOcclusion());
 
+    /** {@code useBlockDescriptionPrefix} の理由は {@link #WET_PLATE_CAMERA_ITEM} と同じ。 */
     public static final DeferredItem<BlockItem> DARKROOM_TABLE_ITEM = ITEMS.registerItem(
             "darkroom_table",
-            properties -> new BlockItem(DARKROOM_TABLE.get(), properties));
+            properties -> new BlockItem(DARKROOM_TABLE.get(), properties.useBlockDescriptionPrefix()));
 
     /**
      * 板は 1 枚 1 スタック。工程状態と潜像を data component で持つので、
