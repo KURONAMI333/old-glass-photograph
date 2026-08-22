@@ -123,21 +123,21 @@ public final class PhotoCaptureController {
         BlockState state = player.level().getBlockState(basePos);
         if (!(state.getBlock() instanceof WetPlateCameraBlock)
                 || !(player.level().getBlockEntity(basePos) instanceof WetPlateCameraBlockEntity camera)) {
-            close(player, "The camera is gone.");
+            close(player, Component.translatable("message.old_glass_photograph.camera.gone"));
             return;
         }
         if (!player.isWithinBlockInteractionRange(basePos, 2.0)) {
-            close(player, "You are too far from the camera.");
+            close(player, Component.translatable("message.old_glass_photograph.camera.too_far"));
             return;
         }
         // 覗いている間に横や前へ回り込まれたらシャッターを切らせない
         // （B-1 の立ち位置の条件は入口だけでなくシャッターにも掛かる）。
         if (!WetPlateCameraBlock.isBehind(state.getValue(WetPlateCameraBlock.FACING), basePos, player)) {
-            close(player, "You have to stand close behind the camera to take the shot.");
+            close(player, Component.translatable("message.old_glass_photograph.camera.stand_behind_shot"));
             return;
         }
         if (camera.isAwaitingCapture()) {
-            close(player, "Exposure already in progress.");
+            close(player, Component.translatable("message.old_glass_photograph.camera.exposure_in_progress"));
             return;
         }
         ViewfinderReading blocked = readPlate(player, camera);
@@ -194,9 +194,9 @@ public final class PhotoCaptureController {
     }
 
     /** ファインダーから出してから理由を言う。覗いている間は actionbar が見えないため。 */
-    private static void close(ServerPlayer player, String reason) {
+    private static void close(ServerPlayer player, Component reason) {
         PacketDistributor.sendToPlayer(player, ViewfinderClosePayload.INSTANCE);
-        player.sendSystemMessage(Component.literal(reason), true);
+        player.sendSystemMessage(reason, true);
     }
 
     /** client から戻ってきた平均像 16,384 byte を受ける。 */
@@ -238,7 +238,7 @@ public final class PhotoCaptureController {
         ExposureModel.Result result = ExposureModel.evaluate(payload.gray(), exposure, session.light());
         LOG.info("[ogp] exposed at {}: light={} ticks={} required={} frames={} band={}",
                 pos, session.light(), exposure, result.requiredTicks(), payload.frames(), result.band());
-        player.sendSystemMessage(Component.literal(result.message()), true);
+        player.sendSystemMessage(result.message(), true);
     }
 
     /**
@@ -257,8 +257,8 @@ public final class PhotoCaptureController {
                 payload.token(), payload.ticks(), payload.frames(), payload.reason());
         // 撮らずに出ただけなら何も言わない。失敗ではないので。
         if (payload.reason() == PhotoCaptureAbortPayload.REASON_TOO_SHORT) {
-            player.sendSystemMessage(Component.literal(
-                    "The shutter closed before any light reached the plate. Nothing was exposed."), true);
+            player.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.camera.nothing_exposed"), true);
         }
     }
 }

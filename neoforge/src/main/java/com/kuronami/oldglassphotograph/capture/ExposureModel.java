@@ -1,6 +1,7 @@
 package com.kuronami.oldglassphotograph.capture;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.LevelReader;
 
@@ -140,14 +141,14 @@ public final class ExposureModel {
          * <p>視点が戻ること自体が「終わった」の合図なので（{@code MODJAM_DECISIONS_OGP.md} §14）、
          * ここは結果だけを言う。<b>秒も光量も出さない</b>（§15）。
          */
-        public String message() {
+        public Component message() {
             if (band == Band.NORMAL) {
-                return "Exposed. The plate holds a latent image.";
+                return Component.translatable("message.old_glass_photograph.exposure.normal");
             }
             if (requiredTicks > PhotoCaptureController.MAX_EXPOSURE_TICKS) {
-                return "Underexposed. It is too dark here to fill the plate. Bring light.";
+                return Component.translatable("message.old_glass_photograph.exposure.under_dark");
             }
-            return "Underexposed. The shutter closed before the plate had gathered enough light.";
+            return Component.translatable("message.old_glass_photograph.exposure.under_short");
         }
     }
 

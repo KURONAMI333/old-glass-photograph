@@ -1,11 +1,13 @@
 package com.kuronami.oldglassphotograph.capture;
 
+import net.minecraft.network.chat.Component;
+
 /**
  * ファインダーを覗いている間に出す 1 行。<b>数値を出さない</b>
  * （{@code MODJAM_DECISIONS_OGP.md} §15。生の光量を player に読ませない）。
  *
  * <p>光の読みと、撮れない理由を 1 つの列挙で持つ。server が判定して ordinal だけを送り、
- * 文面は client が持つ（MOD は英語のみ＝§2 なので、文面を server 側で組む理由が無い）。
+ * client は受けた ordinal から翻訳キーを引いて描く。文面は lang ファイルが持つ。
  *
  * <p><b>撮れない理由には必ず「次に何をすればいいか」を付ける</b>（kura 実機の
  * 「撮影の仕方がよくわかんない」への導線。GUI は作らないので、この 1 行が唯一の教え口）。
@@ -13,26 +15,29 @@ package com.kuronami.oldglassphotograph.capture;
 public enum ViewfinderReading {
 
     /** 屋外の昼。目標まですぐ溜まる。 */
-    BRIGHT("Bright light. The plate takes quickly.", true),
+    BRIGHT("viewfinder.old_glass_photograph.bright", true),
     /** 夕方・木陰・松明のそば。少し長くかかる。 */
-    SOFT("Soft light. The exposure will run longer.", true),
+    SOFT("viewfinder.old_glass_photograph.soft", true),
     /** 屋内の隅・夜明け前。かなり長くかかる。 */
-    DIM("Dim light. The exposure will run a long time.", true),
+    DIM("viewfinder.old_glass_photograph.dim", true),
     /** 上限まで開けても目標に届かない。撮れるが露光不足になる。 */
-    TOO_DARK("Too dark. The plate will not take a full image here.", true),
+    TOO_DARK("viewfinder.old_glass_photograph.too_dark", true),
 
-    NO_PLATE("No plate loaded. Sneak to step back, then load a wet plate.", false),
-    ALREADY_EXPOSED("This plate already holds a latent image. Sneak-click to take it out.", false),
-    NOT_SENSITIZED("Not sensitized. Coat it in a Darkroom Table with a Collodion Kit.", false),
-    DRIED("The collodion dried out. Coat the plate again and reload it.", false),
+    NO_PLATE("viewfinder.old_glass_photograph.no_plate", false),
+    ALREADY_EXPOSED("viewfinder.old_glass_photograph.already_exposed", false),
+    NOT_SENSITIZED("viewfinder.old_glass_photograph.not_sensitized", false),
+    DRIED("viewfinder.old_glass_photograph.dried", false),
     /** 露光を終えるまでに板が乾く。シャッターを開けない（板は消費しないので安全側）。 */
-    WOULD_DRY("The plate would dry out mid-exposure. Load a freshly coated one.", false);
+    WOULD_DRY("viewfinder.old_glass_photograph.would_dry", false);
 
-    private final String text;
+    /** 撮れる状態の 1 行を包んで、2 回目の click を教える。 */
+    private static final String SHOOT_HINT_KEY = "viewfinder.old_glass_photograph.shoot_hint";
+
+    private final String key;
     private final boolean canShoot;
 
-    ViewfinderReading(String text, boolean canShoot) {
-        this.text = text;
+    ViewfinderReading(String key, boolean canShoot) {
+        this.key = key;
         this.canShoot = canShoot;
     }
 
@@ -42,13 +47,15 @@ public enum ViewfinderReading {
     }
 
     /** 覗いている間に描く 1 行。撮れる状態なら操作も添える（これが無いと 2 回目の click に気づけない）。 */
-    public String line() {
-        return canShoot ? text + " Click again to open the shutter." : text;
+    public Component line() {
+        return canShoot
+                ? Component.translatable(SHOOT_HINT_KEY, Component.translatable(key))
+                : Component.translatable(key);
     }
 
     /** 撮れなかった時に actionbar へ出す 1 行（撮れない理由には次の一手が含まれている）。 */
-    public String reason() {
-        return text;
+    public Component reason() {
+        return Component.translatable(key);
     }
 
     public static ViewfinderReading fromOrdinal(int ordinal) {

@@ -141,18 +141,18 @@ public class DarkroomTableBlock extends BaseEntityBlock {
             return InteractionResult.FAIL;
         }
         if (!state.getValue(OPEN)) {
-            say(player, "The lid is shut. Right-click with an empty hand to open the box.");
+            say(player, Component.translatable("message.old_glass_photograph.darkroom.lid_shut"));
             return InteractionResult.CONSUME;
         }
         if (table.hasPlate()) {
-            say(player, table.isWorking()
-                    ? "The box is working on a plate."
-                    : "A plate is already inside.");
+            say(player, Component.translatable(table.isWorking()
+                    ? "message.old_glass_photograph.darkroom.working"
+                    : "message.old_glass_photograph.darkroom.occupied"));
             return InteractionResult.CONSUME;
         }
         table.insertPlate(stack.split(1));
         level.setBlock(pos, state.setValue(CONTENT, Content.PLATE), Block.UPDATE_ALL);
-        say(player, "The plate is in. Close the lid to start: right-click with an empty hand.");
+        say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_in"));
         return InteractionResult.SUCCESS;
     }
 
@@ -183,13 +183,13 @@ public class DarkroomTableBlock extends BaseEntityBlock {
             level.setBlock(pos, state.setValue(OPEN, true), Block.UPDATE_ALL);
             playLid(level, pos, true);
             if (table.isWorking()) {
-                say(player, "Light is getting in. The plate will fog.");
+                say(player, Component.translatable("message.old_glass_photograph.darkroom.light_leak"));
             } else if (!table.hasPlate()) {
-                say(player, "The box is open. Right-click with a plate to put it in.");
+                say(player, Component.translatable("message.old_glass_photograph.darkroom.open_empty"));
             } else if (!table.isAwaitingPickup(gameTime)) {
                 // 入れたまま閉じずに開け直した板。取り出し待ちの板には何も言わない
                 // （像が見えているので、次のクリックで取れることは絵で分かる）。
-                say(player, "A plate is waiting. Close the lid to start.");
+                say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_waiting"));
             }
             return InteractionResult.SUCCESS;
         }
@@ -205,12 +205,13 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         GlassPlateItem.Step step = table.hasPlate() && !table.isWorking()
                 ? GlassPlateItem.nextStep(table.getPlate(), gameTime)
                 : null;
-        String note = null;
+        Component note = null;
         if (step != null && step.inDarkroomBox()) {
             if (!GlassPlateItem.hasChemical(player, step)) {
                 // 蓋は閉じるが工程は始まらない。板は無事のまま中で待つ（§30 決定4 の
                 // 「失敗の状態を 1 つも増やさない」）。
-                note = "You need " + step.chemicalName() + ". The plate is safe inside.";
+                note = Component.translatable("message.old_glass_photograph.darkroom.need_chemical",
+                        step.chemicalName());
             } else if (GlassPlateItem.consumeChemical(player, step)) {
                 table.startProcess(step);
                 note = step.startMessage();
@@ -231,7 +232,7 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         // 箱の中では inventoryTick が回らないので、出す時点で乾燥を清算する
         // （カメラの取り出しと同じ扱い。乾いた板が濡れた表示のまま手に戻るのを防ぐ）。
         if (GlassPlateItem.resolveDryOut(taken, level.getGameTime())) {
-            say(player, "The collodion dried out inside the box. The plate is clean again.");
+            say(player, Component.translatable("message.old_glass_photograph.darkroom.dried_inside"));
         }
         if (!player.addItem(taken)) {
             player.drop(taken, false);
@@ -273,9 +274,9 @@ public class DarkroomTableBlock extends BaseEntityBlock {
                 SoundSource.BLOCKS, 0.7F, 1.1F);
     }
 
-    private static void say(Player player, String text) {
+    private static void say(Player player, Component text) {
         if (player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.sendSystemMessage(Component.literal(text), true);
+            serverPlayer.sendSystemMessage(text, true);
         }
     }
 

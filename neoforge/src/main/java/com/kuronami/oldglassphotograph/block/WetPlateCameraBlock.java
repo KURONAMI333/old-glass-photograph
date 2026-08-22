@@ -219,29 +219,30 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
             return InteractionResult.FAIL;
         }
         if (camera.hasPlate()) {
-            serverPlayer.sendSystemMessage(Component.literal("A plate is already loaded."), true);
+            serverPlayer.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.camera.plate_already_loaded"), true);
             return InteractionResult.FAIL;
         }
         // 入れてよいのは「濡れていて、まだ潜像を持たない」板だけ。それ以外は理由を出して
         // 何も消費しない（板が黙って失われる経路を作らない）。
         if (GlassPlateItem.resolveDryOut(stack, level.getGameTime())) {
-            serverPlayer.sendSystemMessage(Component.literal(
-                    "The collodion dried out. The plate is clean again."), true);
+            serverPlayer.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.plate.dried"), true);
             return InteractionResult.FAIL;
         }
         if (GlassPlateItem.isExposed(stack)) {
-            serverPlayer.sendSystemMessage(Component.literal(
-                    "This plate already holds a latent image. Develop it first."), true);
+            serverPlayer.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.camera.already_exposed"), true);
             return InteractionResult.FAIL;
         }
         if (!GlassPlateItem.isReadyToLoad(stack)) {
-            serverPlayer.sendSystemMessage(Component.literal(
-                    "This plate is not sensitized. Coat it with a Collodion Kit first."), true);
+            serverPlayer.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.camera.not_sensitized"), true);
             return InteractionResult.FAIL;
         }
         camera.setPlate(stack.split(1));
-        serverPlayer.sendSystemMessage(Component.literal(
-                "Plate loaded. Stand behind the camera and right-click to look through it."), true);
+        serverPlayer.sendSystemMessage(
+                Component.translatable("message.old_glass_photograph.camera.plate_loaded"), true);
         return InteractionResult.SUCCESS;
     }
 
@@ -263,8 +264,8 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         // 前や横から触れると自撮りができ、遠くからも撮れてしまう。史実でも写真家は
         // 暗幕を被ってカメラの後ろに立つので、§12 の忠実性とも一致する。
         if (!isBehind(state.getValue(FACING), basePos, player)) {
-            serverPlayer.sendSystemMessage(Component.literal(
-                    "You have to stand close behind the camera to look through it."), true);
+            serverPlayer.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.camera.stand_behind"), true);
             return InteractionResult.CONSUME;
         }
         // 板が無くても・撮れない板でもファインダーには入る。構図と、いま動いているものを
@@ -285,8 +286,8 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         // チェストへ直行させると次に持ち出すまで古い秒が出たままになる）。
         if (GlassPlateItem.resolveDryOut(plate, player.level().getGameTime())
                 && player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.sendSystemMessage(Component.literal(
-                    "The plate dried out inside the camera. The plate is clean again."), true);
+            serverPlayer.sendSystemMessage(
+                    Component.translatable("message.old_glass_photograph.camera.plate_dried_inside"), true);
         }
         camera.setPlate(ItemStack.EMPTY);
         camera.clearCapture();
