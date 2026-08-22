@@ -196,11 +196,20 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         return InteractionResult.SUCCESS;
     }
 
-    /** 中の板の見え方を blockstate へ映す。蓋が閉じている間は絵に出ないが、開けたときに正しく出る。 */
-    static void syncContent(Level level, BlockPos pos, BlockState state, ItemStack plate) {
+    /**
+     * 中の板の見え方を blockstate へ映す。蓋が閉じている間は絵に出ないが、開けたときに正しく出る。
+     *
+     * <p>差し替える元の state は<b>その場で読み直す</b>。呼び出し側が持っている state を土台にすると、
+     * 途中で誰かが蓋を動かしていた場合に {@link #OPEN} や {@link #FACING} まで巻き戻してしまう。
+     */
+    static void syncContent(Level level, BlockPos pos, ItemStack plate) {
+        BlockState current = level.getBlockState(pos);
+        if (!current.is(OgpRegistry.DARKROOM_TABLE.get())) {
+            return;
+        }
         Content content = contentOf(plate);
-        if (state.getValue(CONTENT) != content) {
-            level.setBlock(pos, state.setValue(CONTENT, content), Block.UPDATE_ALL);
+        if (current.getValue(CONTENT) != content) {
+            level.setBlock(pos, current.setValue(CONTENT, content), Block.UPDATE_ALL);
         }
     }
 
