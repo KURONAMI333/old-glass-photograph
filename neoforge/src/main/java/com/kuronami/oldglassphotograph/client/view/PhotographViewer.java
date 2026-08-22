@@ -55,13 +55,32 @@ import net.neoforged.neoforge.common.NeoForge;
  *   <li>level / player が消えた時、ファインダーに入った時</li>
  * </ul>
  *
- * <p>HUD は隠さない。この層は HUD より後に描かれ、暗幕が画面全部を覆うので隠す必要が無く、
- * 隠さなければ「戻し忘れ」で HUD が消えたままになる経路がそもそも存在しない。
+ * <p>幕は<b>半透明</b>で、裏の景色が見える（kura「インベントリと全く一緒」）。値は vanilla の
+ * {@code Screen#extractTransparentBackground} をそのまま借りている（{@link #VEIL_TOP} 参照）。
+ *
+ * <p>HUD は隠さない。この層は HUD より後に描かれるので、隠さなければ「戻し忘れ」で HUD が
+ * 消えたままになる経路がそもそも存在しない。半透明にした結果、写真の外側では HUD が幕越しに
+ * 沈んで見える（vanilla のインベントリは {@code Screen} なので HUD 自体が出ない）。
+ * 十字も体力もケースの下に隠れるので、写真そのものには重ならない。
  */
 public final class PhotographViewer {
 
-    /** 暗幕。ファインダーと同じ色（{@code PhotoCaptureClient.CLOTH_COLOR}）。 */
-    private static final int CLOTH_COLOR = 0xFF0B0908;
+    /**
+     * 幕の上端。<b>vanilla のインベントリが世界の上に敷いている幕と同じ値</b>で、
+     * {@code Screen#extractTransparentBackground} が
+     * {@code fillGradient(0, 0, w, h, -1072689136, -804253680)} を呼んでいる
+     * （{@code MC: net/minecraft/client/gui/screens/Screen.java:417-419}）。
+     * {@code AbstractContainerScreen#isInGameUi()} が {@code true} を返すので
+     * （{@code MC: .../inventory/AbstractContainerScreen.java:539-542}）、
+     * 持ち物画面が通るのはこの経路である。
+     *
+     * <p>色は RGB (16,16,16)、alpha は上 192 / 下 208 の縦グラデ。
+     * {@code fillGradient} は縦にしか引けないので、vanilla と同じ向きにそのまま乗る。
+     */
+    private static final int VEIL_TOP = 0xC0101010;
+
+    /** 幕の下端。{@link #VEIL_TOP} と対。 */
+    private static final int VEIL_BOTTOM = 0xD0101010;
 
     // --- ケースの木口。実測値は smg_mahogany_wetplate.jpg（ファインダーの枠と同じ写真・同じ語彙）で、
     //     暗幕の下へ落とす係数 0.74 も generate_viewfinder.py と揃えてある。
@@ -76,6 +95,24 @@ public final class PhotographViewer {
     private static final int WOOD_SHADOW = 0xFF411D00;
     /** 木と硝子の間の黒い決り (41,41,41) x0.42。 */
     private static final int REBATE = 0xFF111111;
+
+    /**
+     * ケースを開ける音。
+     *
+     * <p><b>額縁の音を使わない。</b>この面は写真を手に持って右クリックで開くので、
+     * {@code entity.item_frame.add_item} を鳴らすと「額縁に写真をはめた」と読まれる
+     * （2026-08-23 kura 実機指摘）。同じ右クリックで実際に起こりうる操作なので、
+     * 音が似ているだけで誤解が成立してしまう。
+     *
+     * <p>紙の擦れる音を既定より低いピッチで鳴らす。ケースは革張りの二つ折りで、
+     * 開ける時に鳴るのは蝶番と張り布の音である。既存の 10 種
+     * （布・望遠鏡・木のボタン・レバー・石のボタン・罠戸・醸造・水掻き・瓶・ガラス）
+     * のどれとも音源が重ならない。
+     */
+    private static final SoundEvent OPEN_SOUND = SoundEvents.BOOK_PAGE_TURN;
+
+    /** ケースを閉じる音。{@link #OPEN_SOUND} と対で、置く側なので軽い当たりの音にする。 */
+    private static final SoundEvent CLOSE_SOUND = SoundEvents.BOOK_PUT;
 
     /** 撮影者と日付の色。木口の明部から彩度を抜いた暖かい灰。 */
     private static final int CREDIT_COLOR = 0xFFBFAE97;
@@ -100,6 +137,11 @@ public final class PhotographViewer {
      * {@code rightClickDelay} が 0 になるたびに {@code startUseItem} を呼び直す
      * （{@code MC: net/minecraft/client/Minecraft.java:2024-2025}）。掛けないと 4 tick ごとに
      * 開いて閉じてを繰り返す。
+     *
+     * <p><b>アイテムを使っている間も立てる</b>（{@link #onClientTick}）。定着は右クリックを
+     * 押し続ける操作で、押したまま板が写真に変わるので、同じ 1 回の押下がそのまま
+     * {@code PhotographItem#use} に届いて拡大が開いてしまう。工程が終わった tick には
+     * 既にここが立っているので、キーを離すまで開かない。
      */
     private static boolean useLatched;
 
@@ -146,7 +188,7 @@ public final class PhotographViewer {
         open = true;
         viewedHand = hand;
         sneakLatched = mc.options.keyShift.isDown();
-        play(SoundEvents.ITEM_FRAME_ADD_ITEM, 0.5F, 0.75F);
+        play(OPEN_SOUND, 0.6F, 0.8F);
         return true;
     }
 
@@ -156,7 +198,7 @@ public final class PhotographViewer {
             return;
         }
         open = false;
-        play(SoundEvents.ITEM_FRAME_REMOVE_ITEM, 0.5F, 0.8F);
+        play(CLOSE_SOUND, 0.6F, 0.9F);
     }
 
     /**
@@ -185,13 +227,16 @@ public final class PhotographViewer {
 
     private static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
         if (!mc.options.keyUse.isDown()) {
             useLatched = false;
+        } else if (player != null && player.isUsingItem()) {
+            // 押しっぱなしで何かを使っている最中。その押下では拡大を開かせない。
+            useLatched = true;
         }
         if (!open) {
             return;
         }
-        LocalPlayer player = mc.player;
         if (mc.level == null || player == null || !player.isAlive()) {
             // 出口の最後の 1 本。死亡・切断・次元移動で開いたままにならない。
             open = false;
@@ -249,8 +294,8 @@ public final class PhotographViewer {
 
         graphics.nextStratum();
 
-        // 1. 暗幕。ケースを暗幕の上に置いて覗いている絵にする。HUD もこれで覆う。
-        graphics.fill(0, 0, guiWidth, guiHeight, CLOTH_COLOR);
+        // 1. 幕。ケースを幕の上に置いて覗いている絵にする。半透明なので裏の景色が透ける。
+        graphics.fillGradient(0, 0, guiWidth, guiHeight, VEIL_TOP, VEIL_BOTTOM);
 
         graphics.pose().pushMatrix();
         // ここから 1 単位 = 実画面の 1 px。写真のドットが実 px の整数倍で並ぶ。
