@@ -35,7 +35,7 @@
   "viewfinder.old_glass_photograph.not_sensitized": "Not sensitized. Coat it in a Darkroom Table with a Collodion Kit.",
   "viewfinder.old_glass_photograph.dried": "The collodion dried out. Coat the plate again and reload it.",
   "viewfinder.old_glass_photograph.would_dry": "The plate would dry out mid-exposure. Load a freshly coated one.",
-  "viewfinder.old_glass_photograph.shoot_hint": "%s Click again to open the shutter.",
+  "viewfinder.old_glass_photograph.shoot_hint": "%s Look around to frame the shot. Click again to open the shutter.",
 
   "message.old_glass_photograph.plate.dried": "The collodion dried out. The plate is clean again.",
   "message.old_glass_photograph.plate.load_into_camera": "Load this plate into a Wet Plate Camera and expose it.",
