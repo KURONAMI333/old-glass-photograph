@@ -64,11 +64,11 @@ public class GlassPlateItem extends Item {
     /**
      * 素のガラス板が重なる枚数。
      *
-     * <p>vanilla が壊れ物・かさばる物に与えている段（卵・雪玉・エンダーパール・看板）に合わせる。
-     * 薄いガラスの板を 64 枚束ねて持ち歩く絵にはならないが、16 枚あれば撮影に出て
-     * 帰ってくるまで足りる（1 枚 = 写真 1 枚）。
+     * <p>この MOD はゲームバランスに影響しない完全娯楽 MOD で、板は写真 1 枚あたり 1 枚消える
+     * 消耗品（{@code MODJAM_DECISIONS_OGP.md} §35）。持ち歩ける枚数を絞っても、
+     * 気軽に何枚も撮ることの邪魔にしかならない。素材（ガラス）と同じ 64 枚にする。
      */
-    public static final int BLANK_MAX_STACK = 16;
+    public static final int BLANK_MAX_STACK = 64;
 
     /** 銀浴から乾くまで。kura 受理済み = 60 秒。 */
     public static final int WET_TICKS = 1200;
