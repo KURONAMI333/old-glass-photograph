@@ -3,6 +3,7 @@ package com.kuronami.oldglassphotograph.client;
 import com.kuronami.oldglassphotograph.client.capture.PhotoCaptureClient;
 import com.kuronami.oldglassphotograph.client.render.PhotographHandRenderer;
 import com.kuronami.oldglassphotograph.client.render.PhotographSpecialRenderer;
+import com.kuronami.oldglassphotograph.client.render.PlateHandRenderer;
 import com.kuronami.oldglassphotograph.client.view.PhotographViewer;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import com.kuronami.oldglassphotograph.item.PlateUseProgress;
@@ -30,6 +31,7 @@ public final class OgpClient {
         modBus.addListener(OgpClient::registerSpecialModelRenderers);
         // RenderHandEvent は game bus（NeoForge.EVENT_BUS）側。
         PhotographHandRenderer.init();
+        PlateHandRenderer.init();
         NeoForge.EVENT_BUS.addListener(OgpClient::onScreenInit);
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, OgpClient::onClientTick);
     }
