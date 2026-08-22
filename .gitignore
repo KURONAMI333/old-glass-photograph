@@ -39,3 +39,4 @@ run-client/
 # 統括 <-> executor の引き継ぎ・作業証跡（公開 repo に入れない）
 _handoff/
 GAP_LOG.md
+branding/
