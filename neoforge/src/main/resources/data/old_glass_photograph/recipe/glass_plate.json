@@ -1,5 +1,13 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [ "minecraft:glass" ],
-  "result": { "id": "old_glass_photograph:glass_plate" }
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "G": "minecraft:glass_pane"
+  },
+  "pattern": [
+    "GGG"
+  ],
+  "result": {
+    "count": 4,
+    "id": "old_glass_photograph:glass_plate"
+  }
 }

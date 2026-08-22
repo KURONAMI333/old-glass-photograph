@@ -1,5 +1,15 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "ingredients": [ "minecraft:redstone" ],
-  "result": { "id": "old_glass_photograph:fixer", "count": 4 }
+  "ingredients": [
+    "minecraft:dried_kelp",
+    [
+      "minecraft:dried_kelp",
+      "minecraft:sulfur"
+    ],
+    "minecraft:glass_bottle"
+  ],
+  "result": {
+    "count": 8,
+    "id": "old_glass_photograph:fixer"
+  }
 }
