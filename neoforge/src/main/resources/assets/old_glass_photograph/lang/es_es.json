@@ -28,6 +28,7 @@
 
   "view.old_glass_photograph.taken_by": "Tomada por %s",
   "view.old_glass_photograph.day": "Día %s",
+  "view.old_glass_photograph.captured_at": "Capturada %s",
 
   "viewfinder.old_glass_photograph.bright": "Luz intensa. La placa se expone rápido.",
   "viewfinder.old_glass_photograph.soft": "Luz suave. La exposición tardará más.",

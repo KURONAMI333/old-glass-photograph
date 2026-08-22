@@ -28,6 +28,7 @@
 
   "view.old_glass_photograph.taken_by": "촬영: %s",
   "view.old_glass_photograph.day": "%s일차",
+  "view.old_glass_photograph.captured_at": "촬영 시각 %s",
 
   "viewfinder.old_glass_photograph.bright": "밝은 빛입니다. 판이 빠르게 노출됩니다.",
   "viewfinder.old_glass_photograph.soft": "약한 빛입니다. 노출 시간이 길어집니다.",

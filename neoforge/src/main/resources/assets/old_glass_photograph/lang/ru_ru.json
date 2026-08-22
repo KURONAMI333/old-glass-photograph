@@ -28,6 +28,7 @@
 
   "view.old_glass_photograph.taken_by": "Снято: %s",
   "view.old_glass_photograph.day": "День %s",
+  "view.old_glass_photograph.captured_at": "Снято %s",
 
   "viewfinder.old_glass_photograph.bright": "Яркий свет. Пластина экспонируется быстро.",
   "viewfinder.old_glass_photograph.soft": "Мягкий свет. Экспозиция займёт дольше.",

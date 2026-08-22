@@ -28,6 +28,7 @@
 
   "view.old_glass_photograph.taken_by": "Prise par %s",
   "view.old_glass_photograph.day": "Jour %s",
+  "view.old_glass_photograph.captured_at": "Prise le %s",
 
   "viewfinder.old_glass_photograph.bright": "Lumière vive. La plaque s'expose vite.",
   "viewfinder.old_glass_photograph.soft": "Lumière douce. L'exposition durera plus longtemps.",
