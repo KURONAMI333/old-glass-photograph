@@ -50,8 +50,6 @@ WOOD_MID = dim((136, 81, 42))
 WOOD_DEEP = dim((129, 56, 3))
 WOOD_SHADOW = dim((88, 39, 0))
 REBATE = dim((41, 41, 41), 0.42)
-BRASS = dim((134, 118, 59))
-BRASS_LIT = dim((134, 118, 59), 1.05)
 
 # --- すりガラスの面 ---
 # 実測の面色 (120,103,82) を暗幕の下へ落とすと (89,76,61)。ただしこれをそのまま
@@ -88,7 +86,8 @@ FALLOFF_N = 2.4  # 2 に近いほど「辺は素直・角だけ沈む」＝像�
 # 枠の寸法（テクスチャの半幅に対する比）。開口の外側だけを使う。
 BAND = 0.100  # マホガニーの枠
 REBATE_W = 0.024  # 黒い決り
-BRASS_LEN = 0.16  # 角金具の長さ（辺方向）
+# 角金具は置かない。上の写真の背面枠を拡大すると、四隅は素の留め継ぎで、
+# 金物は縁に付いた黒い掛け金 1 つだけ。真鍮は前面のレンズ鏡胴にしか無い。
 
 # Java 側と揃える 1 つの値。`ViewfinderGeometry.FRAME_PAD_FRAC` と同じでなければならない。
 FRAME_PAD_FRAC = 0.105
@@ -150,9 +149,6 @@ def build() -> Image.Image:
                     # 木目。1 段だけ振る（階調を増やさない）。
                     if rng.random() < 0.10:
                         tone = WOOD_DEEP if tone is WOOD_MID else tone
-                    # 角の真鍮金具
-                    if nx > 1.0 - BRASS_LEN and ny > 1.0 - BRASS_LEN:
-                        tone = BRASS_LIT if step > 0.55 else BRASS
                     px[x, y] = (*tone, 255)
                 else:
                     px[x, y] = (*REBATE, 255)
