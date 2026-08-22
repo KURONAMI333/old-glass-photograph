@@ -26,6 +26,9 @@
   "tooltip.old_glass_photograph.camera.facing": "レンズは設置したときに向いていた方を向きます",
   "tooltip.old_glass_photograph.camera.stand_behind": "すぐ後ろに立って右クリックすると覗けます",
 
+  "view.old_glass_photograph.taken_by": "撮影 %s",
+  "view.old_glass_photograph.day": "%s日目",
+
   "viewfinder.old_glass_photograph.bright": "明るい光。すぐに写ります。",
   "viewfinder.old_glass_photograph.soft": "弱い光。露光は長めにかかります。",
   "viewfinder.old_glass_photograph.dim": "暗い光。露光はかなり長くかかります。",

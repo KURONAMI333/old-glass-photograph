@@ -49,10 +49,22 @@ public final class PhotographItem extends MapItem {
         // Do not delegate: MapItem adds the map ID, scale, and locked-map tooltip lines.
     }
 
+    /**
+     * じっくり見る面を開く・閉じる（{@code MODJAM_DECISIONS_OGP.md} §32-5）。
+     *
+     * <p><b>server では何もしない。</b>見る面は client の描画層 1 枚で、持ち物も画面も変えない。
+     * server が {@code CONSUME} を返すのは「このクリックはここで終わり」を伝えるためだけで、
+     * 腕を振るのは client 側の {@code SUCCESS}（{@code SwingSource.CLIENT}）に任せる。
+     *
+     * <p>ブロックを狙ってのクリックは {@code useItemOn} が先に処理されるので、
+     * 写真を持ったままチェストを開く経路は塞がらない。
+     */
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        // A viewer belongs to a later feature. PASS keeps the swing animation instead of eating it.
-        return InteractionResult.PASS;
+        if (!level.isClientSide()) {
+            return InteractionResult.CONSUME;
+        }
+        return PhotographViewRequest.toggle(hand) ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     @Override

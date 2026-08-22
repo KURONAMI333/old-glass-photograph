@@ -26,6 +26,9 @@
   "tooltip.old_glass_photograph.camera.facing": "The lens points the way you are facing when you place it.",
   "tooltip.old_glass_photograph.camera.stand_behind": "Stand close behind it and right-click to look through it.",
 
+  "view.old_glass_photograph.taken_by": "Taken by %s",
+  "view.old_glass_photograph.day": "Day %s",
+
   "viewfinder.old_glass_photograph.bright": "Bright light. The plate takes quickly.",
   "viewfinder.old_glass_photograph.soft": "Soft light. The exposure will run longer.",
   "viewfinder.old_glass_photograph.dim": "Dim light. The exposure will run a long time.",
