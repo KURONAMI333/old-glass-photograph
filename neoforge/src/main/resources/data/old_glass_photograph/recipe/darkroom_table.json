@@ -1,5 +1,16 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [ "minecraft:crafting_table", "minecraft:black_wool", "minecraft:black_wool" ],
-  "result": { "id": "old_glass_photograph:darkroom_table" }
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "W": "minecraft:black_wool",
+    "P": "#minecraft:planks",
+    "B": "minecraft:bucket"
+  },
+  "pattern": [
+    "WWW",
+    "PBP",
+    "PPP"
+  ],
+  "result": {
+    "id": "old_glass_photograph:darkroom_table"
+  }
 }

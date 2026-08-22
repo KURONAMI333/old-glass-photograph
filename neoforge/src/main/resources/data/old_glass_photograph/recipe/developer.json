@@ -1,5 +1,15 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "ingredients": [ "minecraft:iron_nugget", "minecraft:fermented_spider_eye" ],
-  "result": { "id": "old_glass_photograph:developer", "count": 4 }
+  "ingredients": [
+    "minecraft:iron_nugget",
+    [
+      "minecraft:charcoal",
+      "minecraft:sulfur"
+    ],
+    "minecraft:glass_bottle"
+  ],
+  "result": {
+    "count": 8,
+    "id": "old_glass_photograph:developer"
+  }
 }

@@ -1,5 +1,14 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "ingredients": [ "minecraft:gunpowder", "minecraft:sugar", "minecraft:gold_nugget" ],
-  "result": { "id": "old_glass_photograph:collodion_kit", "count": 4 }
+  "ingredients": [
+    "minecraft:dried_kelp",
+    "minecraft:copper_nugget",
+    "minecraft:sugar",
+    "minecraft:redstone",
+    "minecraft:glass_bottle"
+  ],
+  "result": {
+    "count": 8,
+    "id": "old_glass_photograph:collodion_kit"
+  }
 }

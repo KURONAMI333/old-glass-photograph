@@ -1,14 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
   "key": {
-    "G": "minecraft:glass",
+    "P": "#minecraft:planks",
     "C": "minecraft:copper_ingot",
-    "P": "#minecraft:planks"
+    "A": [
+      "minecraft:glass",
+      "minecraft:amethyst_shard"
+    ]
   },
   "pattern": [
-    " G ",
-    "CPC",
+    "PPP",
+    "CAC",
     "PPP"
   ],
-  "result": { "id": "old_glass_photograph:wet_plate_camera" }
+  "result": {
+    "id": "old_glass_photograph:wet_plate_camera"
+  }
 }
