@@ -1,5 +1,6 @@
 package com.kuronami.oldglassphotograph.item;
 
+import com.kuronami.oldglassphotograph.OgpAdvancements;
 import com.kuronami.oldglassphotograph.OgpRegistry;
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlock;
 import com.kuronami.oldglassphotograph.capture.PhotoDeveloper;
@@ -338,6 +339,7 @@ public class GlassPlateItem extends Item {
             resolveDryOut(stack, gameTime);
             if (owner instanceof ServerPlayer player) {
                 say(player, Component.translatable("message.old_glass_photograph.plate.dried"));
+                OgpAdvancements.award(player, OgpAdvancements.DRY_PLATE);
             }
             return;
         }

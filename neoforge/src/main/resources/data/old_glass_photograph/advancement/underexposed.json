@@ -1,0 +1,25 @@
+{
+  "criteria": {
+    "underexposed": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.underexposed.description"
+    },
+    "hidden": true,
+    "icon": {
+      "id": "old_glass_photograph:glass_plate"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.underexposed.title"
+    }
+  },
+  "parent": "old_glass_photograph:hold_still",
+  "requirements": [
+    [
+      "underexposed"
+    ]
+  ]
+}

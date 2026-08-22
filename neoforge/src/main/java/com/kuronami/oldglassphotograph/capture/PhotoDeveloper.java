@@ -1,5 +1,6 @@
 package com.kuronami.oldglassphotograph.capture;
 
+import com.kuronami.oldglassphotograph.OgpAdvancements;
 import com.kuronami.oldglassphotograph.OgpRegistry;
 import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
@@ -137,8 +138,30 @@ public final class PhotoDeveloper {
         if (!player.addItem(photo)) {
             player.drop(photo, false);
         }
+        awardMilestones(player, result, fogTicks);
         LOG.info("[ogp] developed photograph mapId={} steps={}", id, PhotoMapPalette.stepCount());
         return true;
+    }
+
+    /**
+     * 仕上がった1枚から遊びの節目を拾う。<b>写真が生まれる場所はここ1つ</b>なので、
+     * 露光の充足度・撮影地点の明るさ・かぶりの tick が全部この scope に揃っている。
+     *
+     * <p>露光不足は「やってしまったこと」の記録であって、狙わせるものではない
+     * （{@code MODJAM_DECISIONS_OGP.md} §1「取り返しのつかない失敗を作らない」）。
+     * したがって進捗の側も hidden にしてあり、文面も出来事の記述にしてある。
+     */
+    private static void awardMilestones(ServerPlayer player, ExposureModel.Result result, int fogTicks) {
+        if (result.band() == ExposureModel.Band.UNDER) {
+            OgpAdvancements.award(player, OgpAdvancements.UNDEREXPOSED);
+        } else if (ExposureModel.reading(result.light()) == ViewfinderReading.DIM) {
+            // 暗い光で目標まで待ち切った1枚。撮れる下限（TOO_DARK）ではなく、
+            // 待てば撮れる帯で最も暗いところ。
+            OgpAdvancements.award(player, OgpAdvancements.LONG_EXPOSURE);
+        }
+        if (fogTicks > 0) {
+            OgpAdvancements.award(player, OgpAdvancements.LIGHT_GOT_IN);
+        }
     }
 
     /**

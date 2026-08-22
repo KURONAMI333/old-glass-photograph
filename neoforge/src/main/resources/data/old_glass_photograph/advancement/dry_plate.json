@@ -1,0 +1,25 @@
+{
+  "criteria": {
+    "dry_plate": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.dry_plate.description"
+    },
+    "hidden": true,
+    "icon": {
+      "id": "minecraft:glass_pane"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.dry_plate.title"
+    }
+  },
+  "parent": "old_glass_photograph:lights_out",
+  "requirements": [
+    [
+      "dry_plate"
+    ]
+  ]
+}
