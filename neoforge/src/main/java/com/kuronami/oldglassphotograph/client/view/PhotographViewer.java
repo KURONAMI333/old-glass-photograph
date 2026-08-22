@@ -31,11 +31,11 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 /**
- * 完成した写真をじっくり見る面（{@code MODJAM_DECISIONS_OGP.md} §32-5・kura 承認済みの B 案）。
+ * 完成した写真をじっくり見る面（{@code MODJAM_DECISIONS_OGP.md} §32-5・承認済みの B 案）。
  *
  * <h2>歩けることをどう担保しているか</h2>
  *
- * kura の要件は「インベントリとかと同じで、移動しながらでも見れる」。vanilla のインベントリを
+ * 要件は「インベントリとかと同じで、移動しながらでも見れる」。vanilla のインベントリを
  * 開いている間は歩けないので、<b>後者を取る</b>のが §32-5 の裁定。
  *
  * <p>担保はフラグではなく<b>構造</b>で取る。この面は {@code Screen} を 1 つも作らず、
@@ -55,7 +55,7 @@ import net.neoforged.neoforge.common.NeoForge;
  *   <li>level / player が消えた時、ファインダーに入った時</li>
  * </ul>
  *
- * <p>幕は<b>半透明</b>で、裏の景色が見える（kura「インベントリと全く一緒」）。値は vanilla の
+ * <p>幕は<b>半透明</b>で、裏の景色が見える（要件は「インベントリと全く一緒」）。値は vanilla の
  * {@code Screen#extractTransparentBackground} をそのまま借りている（{@link #VEIL_TOP} 参照）。
  *
  * <p>HUD は隠さない。この層は HUD より後に描かれるので、隠さなければ「戻し忘れ」で HUD が
@@ -101,7 +101,7 @@ public final class PhotographViewer {
      *
      * <p><b>額縁の音を使わない。</b>この面は写真を手に持って右クリックで開くので、
      * {@code entity.item_frame.add_item} を鳴らすと「額縁に写真をはめた」と読まれる
-     * （2026-08-23 kura 実機指摘）。同じ右クリックで実際に起こりうる操作なので、
+     * （2026-08-23 実機指摘）。同じ右クリックで実際に起こりうる操作なので、
      * 音が似ているだけで誤解が成立してしまう。
      *
      * <p>紙の擦れる音を既定より低いピッチで鳴らす。ケースは革張りの二つ折りで、

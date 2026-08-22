@@ -49,7 +49,7 @@ public final class PhotoCaptureController {
     private static final Logger LOG = LoggerFactory.getLogger("ogp");
 
     /**
-     * 屋外の真昼（光量 15）で露光が成立する tick。kura 受理済み = 4 秒。
+     * 屋外の真昼（光量 15）で露光が成立する tick。実機検証済み = 4 秒。
      *
      * <p>暗い場所ではここより長くなる（{@link ExposureModel#requiredTicks}）。
      * 日中の標準の体験が 4 秒である点は変えていない。

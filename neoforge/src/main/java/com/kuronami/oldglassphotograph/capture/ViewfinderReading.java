@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
  * <p>光の読みと、撮れない理由を 1 つの列挙で持つ。server が判定して ordinal だけを送り、
  * client は受けた ordinal から翻訳キーを引いて描く。文面は lang ファイルが持つ。
  *
- * <p><b>撮れない理由には必ず「次に何をすればいいか」を付ける</b>（kura 実機の
+ * <p><b>撮れない理由には必ず「次に何をすればいいか」を付ける</b>（実機検証の
  * 「撮影の仕方がよくわかんない」への導線。GUI は作らないので、この 1 行が唯一の教え口）。
  */
 public enum ViewfinderReading {

@@ -41,7 +41,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * 設置型の湿板カメラ。<b>構図は設置位置と FACING だけで決まる</b>（kura 受理済み）。
+ * 設置型の湿板カメラ。<b>構図は設置位置と FACING だけで決まる</b>（実機検証済み）。
  * 高さ2ブロック（1×1×2）の構造物（{@code MODJAM_DECISIONS_OGP.md} §18）。
  * vanilla の {@link net.minecraft.world.level.block.DoorBlock} /
  * {@link net.minecraft.world.level.block.DoublePlantBlock} と同じ型で、
@@ -162,7 +162,7 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
      * 45 度は「横成分が後ろ成分を超えない」＝カメラの側面より後ろ寄りに居ること。
      * 設置者は必ず<b>後ろ側</b>に居る（{@link #getStateForPlacement} が
      * レンズを設置者の見ている先へ向ける）が、離して置けば距離が足りないので
-     * 覗くには寄る必要がある。距離の上限は「遠くからも撮れてしまう」（kura 指摘）を塞ぐ。
+     * 覗くには寄る必要がある。距離の上限は「遠くからも撮れてしまう」（実機指摘）を塞ぐ。
      *
      * @param facing  カメラの FACING（レンズの向き）
      * @param basePos 下半分の位置

@@ -62,7 +62,7 @@ public final class OgpRegistry {
      * 既定の {@code canOcclude = true} のままだと {@code BlockStateBase.initCache} が
      * occlusion shape を full cube として焼き（26.2 {@code BlockBehaviour} L498）、
      * 隣接ブロックの面が cull される。実害: 下半分が載っている地面の上面が描かれず、
-     * 地下の洞窟が透けて見えた（2026-08-22 kura 実機・{@code run-client/screenshots/2026-08-22_18.26.14.png}）。
+     * 地下の洞窟が透けて見えた（2026-08-22 実機検証・{@code run-client/screenshots/2026-08-22_18.26.14.png}）。
      *
      * <p>露光には影響しない。{@code ExposureModel.sampleLight} が読むのは
      * {@code cameraPos.relative(facing)}＝レンズの前の 1 マスで、カメラ自身の遮光性とは無関係。
@@ -173,7 +173,7 @@ public final class OgpRegistry {
             event.accept(WET_PLATE_CAMERA_ITEM.get());
             event.accept(DARKROOM_TABLE_ITEM.get());
             // 写真はタブに出さない。像を持たない写真は白紙の板でしかなく、
-            // JEI の一覧にも中身の無いアイテムとして並ぶ（出所: 2026-08-23 kura）。
+            // JEI の一覧にも中身の無いアイテムとして並ぶ（出所: 2026-08-23 実機検証）。
             // 入手経路は定着だけで、クリエイティブから配る意味が無い。
         }
     }

@@ -55,7 +55,7 @@ import java.util.function.Consumer;
  *
  * <p><b>3 種類の薬液はどれも、使う瞬間に手に持っている。</b>塗布と現像は板が箱の中なので
  * 薬品を手に持って蓋を閉じ、定着は板を手に持って振るので薬品はもう一方の手になる
- * （{@code MODJAM_DECISIONS_OGP.md} §32-1 と 2026-08-23 kura 指示）。
+ * （{@code MODJAM_DECISIONS_OGP.md} §32-1 と 2026-08-23 指示）。
  * 持ち物から黙って引かれる経路は 1 つも無い。
  *
  * <p>薬品が無い・段が違う場合は<b>何も消費せず</b>理由だけを出す。
@@ -71,7 +71,7 @@ public class GlassPlateItem extends Item {
      */
     public static final int BLANK_MAX_STACK = 64;
 
-    /** 銀浴から乾くまで。kura 受理済み = 60 秒。 */
+    /** 銀浴から乾くまで。実機検証済み = 60 秒。 */
     public static final int WET_TICKS = 1200;
 
     /** 板の準備（洗浄 + コロジオン + 銀浴をまとめた 1 操作）。 */
@@ -430,7 +430,7 @@ public class GlassPlateItem extends Item {
     /**
      * 板を持っている手と<b>反対の手</b>に、その工程の薬品があるか。定着（{@link Step#FIX}）で使う。
      *
-     * <p>板を持つ手はどちらでもよい（2026-08-23 kura 指示）。持ち方の作法を覚えさせる意味は無く、
+     * <p>板を持つ手はどちらでもよい（2026-08-23 指示）。持ち方の作法を覚えさせる意味は無く、
      * 守りたい規律は「薬品を手に持っていること」の 1 点だけ。
      *
      * @return 薬品を持っている手。持っていなければ null
