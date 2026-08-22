@@ -3,14 +3,11 @@
   "key": {
     "P": "#minecraft:planks",
     "C": "minecraft:copper_ingot",
-    "A": [
-      "minecraft:glass",
-      "minecraft:amethyst_shard"
-    ]
+    "G": "minecraft:glass"
   },
   "pattern": [
     "PPP",
-    "CAC",
+    "CGC",
     "PPP"
   ],
   "result": {
