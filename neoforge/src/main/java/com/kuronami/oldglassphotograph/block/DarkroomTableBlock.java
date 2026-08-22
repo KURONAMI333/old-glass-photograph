@@ -30,8 +30,12 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * Darkroom Table。脚立に載った携帯暗箱（1881 {@code Practical Photography} p.52 の
@@ -68,8 +72,47 @@ public class DarkroomTableBlock extends BaseEntityBlock {
 
     public static final MapCodec<DarkroomTableBlock> CODEC = simpleCodec(DarkroomTableBlock::new);
 
-    /** モデルの実寸（高さ 13、水平は全幅）。{@code cube_all} ではないので当たり判定も合わせる。 */
-    private static final VoxelShape SHAPE = Block.box(0.0, 0.0, 0.0, 16.0, 13.0, 16.0);
+    // ------------------------------------------------------------------ 当たり判定
+    //
+    // MODJAM_DECISIONS_OGP.md §17/§36。モデル（d1_closed.json 他）の element 座標を
+    // FACING=NORTH 基準（d1_closed 自体が north 変種にそのまま使われている）でそのまま箱にし、
+    // 他の向きは blockstate と同じ y 回転で作る。OPEN/CONTENT では形を変えない
+    // （蓋の開閉で当たり判定を動かさないのは vanilla のチェストと同じ扱い）。
+    //
+    // 脚立の脚4本は細いまま（Y0〜4、2×2）にして、脚の間・脚の外側は素通りできるようにする。
+    // 箱本体（Y4〜13）だけ太い1枚にまとめる。窓ガラスの張り出しは細分化しない。
+    private static final double[][] SHAPE_BOXES_NORTH = {
+            {2, 0, 3, 4, 4, 5},
+            {2, 0, 11, 4, 4, 13},
+            {12, 0, 3, 14, 4, 5},
+            {12, 0, 11, 14, 4, 13},
+            {1, 4, 2, 15, 13, 14},
+    };
+
+    private static final Map<Direction, VoxelShape> SHAPES = buildShapes(SHAPE_BOXES_NORTH);
+
+    private static Map<Direction, VoxelShape> buildShapes(double[][] boxesNorth) {
+        Map<Direction, VoxelShape> shapes = new EnumMap<>(Direction.class);
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            VoxelShape shape = Shapes.empty();
+            for (double[] box : boxesNorth) {
+                double[] xz = rotateNorthToFacing(dir, box[0], box[2], box[3], box[5]);
+                shape = Shapes.or(shape, Block.box(xz[0], box[1], xz[1], xz[2], box[4], xz[3]));
+            }
+            shapes.put(dir, shape);
+        }
+        return shapes;
+    }
+
+    /** FACING=NORTH 基準の (x1,z1)-(x2,z2) を、blockstate の y 回転と同じ向きで dir へ回す。 */
+    private static double[] rotateNorthToFacing(Direction dir, double x1, double z1, double x2, double z2) {
+        return switch (dir) {
+            case EAST -> new double[]{16 - z2, x1, 16 - z1, x2};
+            case SOUTH -> new double[]{16 - x2, 16 - z2, 16 - x1, 16 - z1};
+            case WEST -> new double[]{z1, 16 - x2, z2, 16 - x1};
+            default -> new double[]{x1, z1, x2, z2};
+        };
+    }
 
     public DarkroomTableBlock(Properties properties) {
         super(properties);
@@ -91,7 +134,7 @@ public class DarkroomTableBlock extends BaseEntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHAPE;
+        return SHAPES.get(state.getValue(FACING));
     }
 
     @Override
