@@ -40,6 +40,21 @@ public final class PhotoDeveloper {
      */
     private static final double TRACE_FLOOR = 0.15;
 
+    /**
+     * 痕跡の上限。かぶりを足しても<b>ここを超えない</b>ので、写真は必ず得られる
+     * （{@code MODJAM_DECISIONS_OGP.md} §30。蓋を開けて作業しても板を失う失敗は増やさない）。
+     */
+    private static final double TRACE_CEILING = 1.0;
+
+    /**
+     * かぶりが最大に効く tick 数。Darkroom Table の 2 工程（塗布 80 + 現像 80）を
+     * 蓋を開けたまま最後まで回した量。
+     */
+    private static final int FOG_FULL_TICKS = 160;
+
+    /** かぶりが痕跡へ足せる最大量。適正露光（痕跡 {@link #TRACE_FLOOR}）でも真っ白にはならない幅に取る。 */
+    private static final double FOG_TRACE_MAX = 0.45;
+
     /** 周辺減光（Petzval 型レンズの周辺光量落ち）。SHEET_C の C1 と同じ強さを上端に採る。 */
     private static final double VIGNETTE_STRENGTH_MAX = 0.55;
     private static final double VIGNETTE_POWER = 2.6;
@@ -87,13 +102,15 @@ public final class PhotoDeveloper {
         long traceSeed = player.getUUID().getMostSignificantBits()
                 ^ level.getGameTime()
                 ^ ((long) exposure << 20);
-        double traceIntensity = traceIntensity(result.dose());
+        int fogTicks = plate.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0);
+        double traceIntensity = traceIntensity(result.dose(), fogTicks);
         byte[] traced = applyPlateTraces(exposed, traceIntensity, traceSeed);
 
         LOG.info("[ogp][expose] develop: exposureTicks={} required={} dose={} light={} gain={} band={} "
-                        + "meanLuma={} clipped={}% crushed={}% traceIntensity={}",
+                        + "meanLuma={} clipped={}% crushed={}% fogTicks={} traceIntensity={}",
                 exposure, result.requiredTicks(), result.dose(), latent.light(), result.gain(),
-                result.band(), result.meanLuma(), result.clippedPct(), result.crushedPct(), traceIntensity);
+                result.band(), result.meanLuma(), result.clippedPct(), result.crushedPct(),
+                fogTicks, traceIntensity);
 
         byte[] packed = PhotoMapPalette.quantizeAll(traced);
         MapItemSavedData fresh = MapItemSavedData.createFresh(
@@ -120,12 +137,20 @@ public final class PhotoDeveloper {
     }
 
     /**
-     * dose（1.0 で露光成立）から痕跡の強さ 0..1 を作る。{@link #TRACE_FLOOR} が下限で、
+     * dose（1.0 で露光成立）とかぶり量から痕跡の強さ 0..1 を作る。{@link #TRACE_FLOOR} が下限で、
      * dose が 0 に近づくほど 1.0 まで線形に上がる。
+     *
+     * <p>Darkroom Table の蓋を開けたまま工程を回すと光が入り、その tick 数だけ痕跡が濃くなる
+     * （{@code MODJAM_DECISIONS_OGP.md} §30）。<b>失敗が増えるのではなく写真がかぶる</b>。
+     * かぶりの寄与は {@link #FOG_TRACE_MAX} 止まりで、合計も {@link #TRACE_CEILING} で頭打ちにする。
+     *
+     * @param fogTicks 蓋を開けたまま工程が進んだ tick 数
      */
-    static double traceIntensity(double dose) {
+    static double traceIntensity(double dose, int fogTicks) {
         double severity = Math.clamp(1.0 - dose, 0.0, 1.0);
-        return TRACE_FLOOR + (1.0 - TRACE_FLOOR) * severity;
+        double base = TRACE_FLOOR + (1.0 - TRACE_FLOOR) * severity;
+        double fog = FOG_TRACE_MAX * Math.clamp(fogTicks / (double) FOG_FULL_TICKS, 0.0, 1.0);
+        return Math.min(base + fog, TRACE_CEILING);
     }
 
     /**

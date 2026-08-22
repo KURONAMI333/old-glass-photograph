@@ -3,6 +3,8 @@ package com.kuronami.oldglassphotograph.component;
 import com.kuronami.oldglassphotograph.OldGlassPhotograph;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.util.ExtraCodecs;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -37,6 +39,24 @@ public final class OgpDataComponents {
                     () -> DataComponentType.<PlateProcess>builder()
                             .persistent(PlateProcess.CODEC)
                             .networkSynchronized(PlateProcess.STREAM_CODEC)
+                            .build());
+
+    /**
+     * Darkroom Table の蓋を開けたまま工程を回した tick 数（かぶり量）。
+     *
+     * <p><b>{@link #PLATE_PROCESS} と同じ record に入れてはいけない。</b>
+     * {@code PhotoCaptureController} は露光の完了時に {@code PlateProcess} を
+     * <b>新しい record で丸ごと差し替える</b>ので、そこに持たせた値は塗布から現像へ渡らずに消える。
+     * 独立した component なら差し替えの巻き添えにならず、塗布で入ったかぶりが現像まで残る。
+     *
+     * <p>板が乾いて素のガラスへ戻るとき（{@code GlassPlateItem.resolveDryOut}）は
+     * この値も消す。消さないと 1 枚のガラスにかぶりが永久に溜まり続ける。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PLATE_FOG =
+            COMPONENTS.register("plate_fog",
+                    () -> DataComponentType.<Integer>builder()
+                            .persistent(ExtraCodecs.NON_NEGATIVE_INT)
+                            .networkSynchronized(ByteBufCodecs.VAR_INT)
                             .build());
 
     private OgpDataComponents() {
