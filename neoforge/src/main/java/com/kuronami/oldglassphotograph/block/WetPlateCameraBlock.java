@@ -42,11 +42,12 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>この塊で通す操作:
  * <ul>
- *   <li>Glass Plate を持って右クリック = 装填</li>
- *   <li>素手で右クリック = ファインダーを覗く。撮影はここからもう一度クリックする
+ *   <li>Glass Plate を持って右クリック = 装填（どの向きからでもよい）</li>
+ *   <li>素手で右クリック = ファインダーを覗く。<b>カメラの後ろに立っている時だけ</b>
+ *       （{@link #isBehind}）。撮影はここからもう一度クリックする
  *       （{@code MODJAM_DECISIONS_OGP.md} §31。露光の進行は
  *       {@link com.kuronami.oldglassphotograph.capture.PhotoCaptureController} が持つ）</li>
- *   <li>スニーク + 素手で右クリック = 装填 Plate の取り出し</li>
+ *   <li>スニーク + 素手で右クリック = 装填 Plate の取り出し（どの向きからでもよい）</li>
  * </ul>
  * <b>BlockEntity は下半分だけが持つ。</b>上半分への操作は全て下半分へ転送する
  * （player はレンズのある上半分を触るので、上半分でも同じように効くことが必須）。
@@ -75,9 +76,37 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         builder.add(FACING, HALF);
     }
 
+    /** 覗ける立ち位置の上限距離（水平・ブロック）。これより遠いと「覗いている」と言えない。 */
+    private static final double PEEK_RANGE = 2.5;
+
     /** 下半分の位置。上半分を渡されたら1つ下げる。どちらの半分に対しても呼べる。 */
     private static BlockPos basePos(BlockPos pos, BlockState state) {
         return state.getValue(HALF) == DoubleBlockHalf.UPPER ? pos.below() : pos;
+    }
+
+    /**
+     * player がカメラの<b>後ろ</b>に立っているか（{@code MODJAM_DECISIONS_OGP.md} B-1）。
+     * 見ている向きではなく立ち位置で決める。
+     *
+     * <p>範囲は<b>真後ろを中心に左右 45 度の扇形・水平 {@value #PEEK_RANGE} マス以内</b>。
+     * 45 度は「横成分が後ろ成分を超えない」＝カメラの側面より後ろ寄りに居ること。
+     * 設置者は必ず<b>後ろ側</b>に居る（{@link #getStateForPlacement} が
+     * レンズを設置者の見ている先へ向ける）が、離して置けば距離が足りないので
+     * 覗くには寄る必要がある。距離の上限は「遠くからも撮れてしまう」（kura 指摘）を塞ぐ。
+     *
+     * @param facing  カメラの FACING（レンズの向き）
+     * @param basePos 下半分の位置
+     */
+    public static boolean isBehind(Direction facing, BlockPos basePos, Player player) {
+        double dx = player.getX() - (basePos.getX() + 0.5);
+        double dz = player.getZ() - (basePos.getZ() + 0.5);
+        // レンズの向きの逆方向の成分。正なら後ろ側の半空間に居る。
+        double back = -(dx * facing.getStepX() + dz * facing.getStepZ());
+        if (back <= 0.0) {
+            return false;
+        }
+        double side = Math.abs(dx * facing.getStepZ() - dz * facing.getStepX());
+        return side <= back && dx * dx + dz * dz <= PEEK_RANGE * PEEK_RANGE;
     }
 
     @Override
@@ -88,7 +117,18 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         if (pos.getY() >= level.getMaxY() || !level.getBlockState(pos.above()).canBeReplaced(context)) {
             return null;
         }
-        // 設置者と同じ向き = 設置者の背中側を撮る。設置してそのまま前を撮れる形にする。
+        // レンズは設置者が見ている先を向く。したがって設置者は必ずカメラの後ろ側に立つ
+        // （B-1 の立ち位置判定 isBehind が見る半空間の中）。
+        //
+        // 向きの鎖（26.2 の一次ソースで確認済み・2026-08-22）:
+        //   getHorizontalDirection() = player.getDirection()   … UseOnContext L68-70
+        //   blockstate の facing=east → y:90 が model の -z を east へ回す
+        //                                     … vanilla furnace の blockstate + orientable_with_bottom
+        //                                       ("north": "#front") と同じ写像
+        //   model の -z 端 = lens_barrel / +z 端 = rear_standard（すりガラス）
+        //   撮影視点の yaw = FACING.toYRot()（NORTH=180 等）→ 視線ベクトル (0,0,-1) = north
+        // したがってレンズ・blockstate・撮影視点は全部 FACING で一致している。
+        // ここに getOpposite() を足すとレンズが設置者を向く（＝自撮り）ので足さない。
         return defaultBlockState()
                 .setValue(FACING, context.getHorizontalDirection())
                 .setValue(HALF, DoubleBlockHalf.LOWER);
@@ -201,7 +241,7 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         }
         camera.setPlate(stack.split(1));
         serverPlayer.sendSystemMessage(Component.literal(
-                "Plate loaded. Right-click the camera to look through it."), true);
+                "Plate loaded. Stand behind the camera and right-click to look through it."), true);
         return InteractionResult.SUCCESS;
     }
 
@@ -218,6 +258,14 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         }
         if (player.isShiftKeyDown()) {
             return ejectPlate(camera, player);
+        }
+        // 覗けるのはカメラの後ろに立っている時だけ（MODJAM_DECISIONS_OGP.md B-1）。
+        // 前や横から触れると自撮りができ、遠くからも撮れてしまう。史実でも写真家は
+        // 暗幕を被ってカメラの後ろに立つので、§12 の忠実性とも一致する。
+        if (!isBehind(state.getValue(FACING), basePos, player)) {
+            serverPlayer.sendSystemMessage(Component.literal(
+                    "You have to stand close behind the camera to look through it."), true);
+            return InteractionResult.CONSUME;
         }
         // 板が無くても・撮れない板でもファインダーには入る。構図と、いま動いているものを
         // 撮る前に見られること自体が要件（MODJAM_DECISIONS_OGP.md §2 Fun 案1）。

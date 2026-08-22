@@ -130,6 +130,12 @@ public final class PhotoCaptureController {
             close(player, "You are too far from the camera.");
             return;
         }
+        // 覗いている間に横や前へ回り込まれたらシャッターを切らせない
+        // （B-1 の立ち位置の条件は入口だけでなくシャッターにも掛かる）。
+        if (!WetPlateCameraBlock.isBehind(state.getValue(WetPlateCameraBlock.FACING), basePos, player)) {
+            close(player, "You have to stand close behind the camera to take the shot.");
+            return;
+        }
         if (camera.isAwaitingCapture()) {
             close(player, "Exposure already in progress.");
             return;
