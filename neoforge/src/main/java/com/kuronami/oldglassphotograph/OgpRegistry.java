@@ -122,6 +122,7 @@ public final class OgpRegistry {
         }
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(GLASS_PLATE.get());
+            event.accept(PHOTOGRAPH.get());
             event.accept(COLLODION_KIT.get());
             event.accept(DEVELOPER.get());
             event.accept(FIXER.get());

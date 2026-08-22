@@ -1,6 +1,9 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "old_glass_photograph:item/photograph"
+    "type": "minecraft:special",
+    "base": "old_glass_photograph:item/photograph",
+    "model": {
+      "type": "old_glass_photograph:photograph"
+    }
   }
 }
