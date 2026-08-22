@@ -282,6 +282,16 @@ public final class PhotoCaptureClient {
         NeoForge.EVENT_BUS.addListener(InputEvent.InteractionKeyMappingTriggered.class, PhotoCaptureClient::onInteract);
     }
 
+    /**
+     * ファインダーの何かしらの段に入っているか（覗いている・露光中・結果待ち）。
+     *
+     * <p>写真をじっくり見る面が、同じ画面に 2 枚重ならないようにするためだけの読み取り口
+     * （{@code PhotographViewer}）。<b>ここから phase を書き換える経路は無い。</b>
+     */
+    public static boolean isEngaged() {
+        return phase != Phase.IDLE;
+    }
+
     private static void registerHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ViewfinderOpenPayload.TYPE, (payload, context) -> openViewfinder(payload));
         event.register(ShutterOpenPayload.TYPE, (payload, context) -> openShutter(payload));
