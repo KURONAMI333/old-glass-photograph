@@ -759,9 +759,12 @@ public final class PhotoCaptureClient {
         waitLeft = CALLBACK_TIMEOUT_TICKS;
         closeHold = CLOSE_HOLD_TICKS;
         // キャップが戻る。満ちて閉じた時だけ、板が座る音を重ねて「撮れた」を別物にする。
+        // 額縁の音は使わない。撮影も右クリックの操作なので、
+        // 「額縁に写真をはめた」と読まれる（2026-08-23 kura 実機指摘）。
+        // 硝子の板が座る音を、木のキャップの音の上へ薄く重ねる。
         play(SoundEvents.WOODEN_BUTTON_CLICK_OFF, 0.85F, 0.5F);
         if (filled) {
-            play(SoundEvents.ITEM_FRAME_ADD_ITEM, 0.6F, 0.6F);
+            play(SoundEvents.GLASS_PLACE, 0.5F, 1.15F);
         }
         tryFinalize();
     }
