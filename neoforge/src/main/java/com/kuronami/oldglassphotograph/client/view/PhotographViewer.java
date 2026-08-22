@@ -354,7 +354,12 @@ public final class PhotographViewer {
                 layout.right() - depth, layout.bottom() - depth, color);
     }
 
-    /** 撮影者と日付。枠の下の暗幕へ 2 行。座標は GUI px。 */
+    /**
+     * 撮影者と日付、実世界の日時。枠の下の暗幕へ最大 3 行。座標は GUI px。
+     *
+     * <p>{@code capturedAt} はこれより前に現像された写真だと空文字列
+     * （{@link PhotoCredit#capturedAt()} の後方互換）なので、その時は 3 行目を出さない。
+     */
     private static void drawCredit(GuiGraphicsExtractor graphics, Font font, int guiWidth,
                                    int top, PhotoCredit credit) {
         int centerX = guiWidth / 2;
@@ -364,6 +369,11 @@ public final class PhotographViewer {
         graphics.centeredText(font,
                 Component.translatable("view.old_glass_photograph.day", credit.day()),
                 centerX, top + LINE_HEIGHT, CREDIT_COLOR);
+        if (!credit.capturedAt().isEmpty()) {
+            graphics.centeredText(font,
+                    Component.translatable("view.old_glass_photograph.captured_at", credit.capturedAt()),
+                    centerX, top + LINE_HEIGHT * 2, CREDIT_COLOR);
+        }
     }
 
     private static void play(SoundEvent sound, float volume, float pitch) {

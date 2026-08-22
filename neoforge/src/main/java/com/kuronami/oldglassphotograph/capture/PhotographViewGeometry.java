@@ -60,12 +60,15 @@ public final class PhotographViewGeometry {
     public static final double VIEW_FRAC = 0.92;
 
     /**
-     * 撮影者と日付を出す時に、外枠の下へ空ける高さ（<b>GUI px</b>）。
+     * 撮影者・日付・実世界の日時を出す時に、外枠の下へ空ける高さ（<b>GUI px</b>）。
      *
      * <p>文字は暗幕の上に GUI の等倍で描く（実 px 単位へ落とすと文字が読めない大きさになる）ので、
-     * ここだけ単位が GUI px。内訳は 枠との間 6 + 9 px の行 2 本 + 下の余白 2。
+     * ここだけ単位が GUI px。内訳は 枠との間 6 + 10 px の行 3 本 + 下の余白 2。行の高さは
+     * {@code PhotographViewer.LINE_HEIGHT}（実際の描画間隔）に合わせてあり、古い写真
+     * （3 行目の実世界日時を持たない）でも同じ高さを取り置く（写真ごとに枠の倍率が
+     * 変わると並べて見た時に不揃いになるため）。
      */
-    public static final int CREDIT_BLOCK_GUI = 26;
+    public static final int CREDIT_BLOCK_GUI = 36;
 
     private PhotographViewGeometry() {
     }

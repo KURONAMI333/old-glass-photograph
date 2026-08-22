@@ -28,6 +28,7 @@
 
   "view.old_glass_photograph.taken_by": "撮影 %s",
   "view.old_glass_photograph.day": "%s日目",
+  "view.old_glass_photograph.captured_at": "撮影日時 %s",
 
   "viewfinder.old_glass_photograph.bright": "明るい光。すぐに写ります。",
   "viewfinder.old_glass_photograph.soft": "弱い光。露光は長めにかかります。",

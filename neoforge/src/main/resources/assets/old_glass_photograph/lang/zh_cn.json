@@ -28,6 +28,7 @@
 
   "view.old_glass_photograph.taken_by": "拍摄者：%s",
   "view.old_glass_photograph.day": "第%s天",
+  "view.old_glass_photograph.captured_at": "拍摄于 %s",
 
   "viewfinder.old_glass_photograph.bright": "光线充足。玻璃版会很快感光。",
   "viewfinder.old_glass_photograph.soft": "光线柔和。曝光时间会更长。",

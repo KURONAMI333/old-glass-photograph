@@ -132,7 +132,8 @@ public final class PhotoDeveloper {
         photo.set(DataComponents.MAP_ID, id);
         // 撮影者と日付。ここが唯一の書き込み口で、以後この写真では変わらない。
         photo.set(OgpDataComponents.PHOTO_CREDIT.get(),
-                new PhotoCredit(player.getGameProfile().name(), PhotoCredit.dayOf(level.getGameTime())));
+                new PhotoCredit(player.getGameProfile().name(), PhotoCredit.dayOf(level.getGameTime()),
+                        PhotoCredit.captureTimestamp()));
 
         plate.shrink(1);
         if (!player.addItem(photo)) {
