@@ -105,7 +105,7 @@ public class DarkroomTableBlockEntity extends BlockEntity {
         }
         GlassPlateItem.applyDarkroomResult(table.plate, finished, level.getGameTime());
         table.setChanged();
-        DarkroomTableBlock.syncContent(level, pos, state, table.plate);
+        DarkroomTableBlock.syncContent(level, pos, table.plate);
     }
 
     /**
