@@ -1,8 +1,8 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    "minecraft:dried_kelp",
     "minecraft:copper_nugget",
+    "minecraft:sugar",
     "minecraft:glass_bottle"
   ],
   "result": {
