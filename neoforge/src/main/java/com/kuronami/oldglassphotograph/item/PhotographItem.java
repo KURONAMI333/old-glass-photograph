@@ -34,9 +34,13 @@ public final class PhotographItem extends MapItem {
 
     @Override
     protected MapItemSavedData getCustomMapData(ItemStack stack, Level level) {
-        // The server still resolves map data for vanilla persistence and synchronization. On the
-        // client, returning null keeps map-specific renderers (including item frames) on our model.
-        return level.isClientSide() ? null : super.getCustomMapData(stack, level);
+        // 両側で実データを返す。client 側で null を返すと、額縁が state.mapId を立てられず
+        // （MC: net/minecraft/client/renderer/entity/ItemFrameRenderer.java:135）
+        // どの写真も同じ 16px のアイテム絵になる。
+        //
+        // 一人称の紙地図の枠は「ここを null にする」ではなく、描画側の分岐を
+        // RenderHandEvent で迂回して外している（PhotographHandRenderer 参照）。
+        return super.getCustomMapData(stack, level);
     }
 
     @Override
@@ -47,8 +51,8 @@ public final class PhotographItem extends MapItem {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        // A viewer belongs to a later feature; do not invoke any map-specific use behavior here.
-        return InteractionResult.CONSUME;
+        // A viewer belongs to a later feature. PASS keeps the swing animation instead of eating it.
+        return InteractionResult.PASS;
     }
 
     @Override
