@@ -2,10 +2,7 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     "minecraft:iron_nugget",
-    [
-      "minecraft:charcoal",
-      "minecraft:sulfur"
-    ],
+    "#minecraft:coals",
     "minecraft:glass_bottle"
   ],
   "result": {
