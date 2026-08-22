@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s Regardez autour pour cadrer la photo. Cliquez à nouveau pour ouvrir l'obturateur.",
 
   "message.old_glass_photograph.plate.dried": "Le collodion a séché. La plaque est de nouveau propre.",
+  "message.old_glass_photograph.plate.washed": "Lavée dans le chaudron. La plaque est de nouveau propre.",
   "message.old_glass_photograph.plate.load_into_camera": "Chargez cette plaque dans un Appareil à Plaque Humide et exposez-la.",
   "message.old_glass_photograph.plate.use_darkroom": "Ouvrez une Table de Chambre Noire, placez la plaque, puis fermez le couvercle avec %s en main.",
   "message.old_glass_photograph.plate.need_chemical": "Tenez %s dans l'autre main.",

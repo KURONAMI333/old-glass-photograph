@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s环顾四周以取景构图。再次点击即可打开快门。",
 
   "message.old_glass_photograph.plate.dried": "火棉胶已干涸。玻璃版已恢复洁净。",
+  "message.old_glass_photograph.plate.washed": "在炼药锅中洗净。玻璃版已恢复洁净。",
   "message.old_glass_photograph.plate.load_into_camera": "将这块玻璃版装入湿版相机进行曝光。",
   "message.old_glass_photograph.plate.use_darkroom": "打开暗房台，放入玻璃版，然后手持%s关上盖子。",
   "message.old_glass_photograph.plate.need_chemical": "另一只手持%s。",

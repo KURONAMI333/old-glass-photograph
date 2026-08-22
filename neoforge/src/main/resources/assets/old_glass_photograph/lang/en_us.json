@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s Look around to frame the shot. Click again to open the shutter.",
 
   "message.old_glass_photograph.plate.dried": "The collodion dried out. The plate is clean again.",
+  "message.old_glass_photograph.plate.washed": "Washed off in the cauldron. The plate is clean again.",
   "message.old_glass_photograph.plate.load_into_camera": "Load this plate into a Wet Plate Camera and expose it.",
   "message.old_glass_photograph.plate.use_darkroom": "Open a Darkroom Table, put the plate in, then close the lid holding %s.",
   "message.old_glass_photograph.plate.need_chemical": "Hold %s in your other hand.",

@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s Mira alrededor para encuadrar la toma. Haz clic de nuevo para abrir el obturador.",
 
   "message.old_glass_photograph.plate.dried": "El colodión se secó. La placa vuelve a estar limpia.",
+  "message.old_glass_photograph.plate.washed": "Se lavó en el caldero. La placa vuelve a estar limpia.",
   "message.old_glass_photograph.plate.load_into_camera": "Carga esta placa en una Cámara de Placa Húmeda y expónla.",
   "message.old_glass_photograph.plate.use_darkroom": "Abre una Mesa de Cuarto Oscuro, coloca la placa dentro y cierra la tapa con %s en la mano.",
   "message.old_glass_photograph.plate.need_chemical": "Sostén %s en la otra mano.",

@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s 주변을 둘러보며 구도를 잡으세요. 다시 클릭하면 셔터가 열립니다.",
 
   "message.old_glass_photograph.plate.dried": "콜로디온이 말랐습니다. 판이 다시 깨끗해졌습니다.",
+  "message.old_glass_photograph.plate.washed": "가마솥에서 씻겨 나갔습니다. 판이 다시 깨끗해졌습니다.",
   "message.old_glass_photograph.plate.load_into_camera": "이 판을 습판 카메라에 넣고 노출하세요.",
   "message.old_glass_photograph.plate.use_darkroom": "암실 작업대를 열어 판을 넣고, %s를 든 채 뚜껑을 닫으세요.",
   "message.old_glass_photograph.plate.need_chemical": "다른 손에 %s를 드세요.",
