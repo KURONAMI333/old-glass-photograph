@@ -33,12 +33,24 @@ public final class OgpDataComponents {
                             .persistent(LatentImage.CODEC)
                             .build());
 
-    /** Plate process stage and wetness countdown, shown in the plate name and tooltip. */
+    /**
+     * Plate process stage and wetness countdown, shown in the plate name and tooltip.
+     *
+     * <p>{@code ignoreSwapAnimation} が要る。残り秒は 1 秒ごとに書き変わるので、
+     * これが無いと {@code ItemInHandRenderer.tick} が毎秒「別のアイテムに持ち替えた」と見なして
+     * 装備し直しのモーションを出す（26.2 {@code ItemInHandRenderer.shouldInstantlyReplaceVisibleItem}
+     * が {@code ItemStack.matchesIgnoringComponents(.., DataComponentType::ignoreSwapAnimation)} を見る）。
+     * vanilla は同じ症状を持つ {@code minecraft:damage} に同じ印を付けている。
+     *
+     * <p>この印は<b>持ち替えモーションの判定にだけ</b>効く。名前・tooltip・モデルは従来どおり
+     * 毎秒更新されるので、残り秒の表示は消えない。
+     */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<PlateProcess>> PLATE_PROCESS =
             COMPONENTS.register("plate_process",
                     () -> DataComponentType.<PlateProcess>builder()
                             .persistent(PlateProcess.CODEC)
                             .networkSynchronized(PlateProcess.STREAM_CODEC)
+                            .ignoreSwapAnimation()
                             .build());
 
     /**
