@@ -71,6 +71,22 @@ public final class OgpDataComponents {
                             .networkSynchronized(ByteBufCodecs.VAR_INT)
                             .build());
 
+    /**
+     * 完成した写真に載る撮影者と日付（{@code MODJAM_DECISIONS_OGP.md} §32-5）。
+     *
+     * <p><b>写真にしか付かない。</b>板の工程は {@link #PLATE_PROCESS} を丸ごと差し替えるので、
+     * 途中の段に載せると現像で消える。{@code PhotoDeveloper} が写真を作る瞬間に 1 回だけ書く。
+     *
+     * <p>これが入る前に現像された写真には付いていない。読む側は必ず「無い」を通す
+     * （じっくり見る面は撮影者の行を出さないだけで、写真は同じように出る）。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<PhotoCredit>> PHOTO_CREDIT =
+            COMPONENTS.register("photo_credit",
+                    () -> DataComponentType.<PhotoCredit>builder()
+                            .persistent(PhotoCredit.CODEC)
+                            .networkSynchronized(PhotoCredit.STREAM_CODEC)
+                            .build());
+
     private OgpDataComponents() {
     }
 
