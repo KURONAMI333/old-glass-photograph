@@ -16,6 +16,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -165,6 +167,10 @@ public final class PhotoCaptureController {
         PENDING.put(token, new Session(basePos, light));
         camera.beginCapture(token, player.getUUID());
         PacketDistributor.sendToPlayer(player, new ShutterOpenPayload(token, window, INTERVAL_TICKS));
+        // 撮っている本人は client 側で先に鳴らしている（往復を待つと押した感触が遅れる）。
+        // ここで鳴らすのは周りに居る player のぶん。
+        player.level().playSound(player, basePos.above(),
+                SoundEvents.WOODEN_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.7F, 0.5F);
     }
 
     /**
@@ -234,6 +240,9 @@ public final class PhotoCaptureController {
                 PlateProcess.Stage.EXPOSED, wetUntil,
                 (int) Math.max(0, (wetUntil - player.level().getGameTime() + 19) / 20)));
         camera.setChanged();
+
+        player.level().playSound(player, pos.above(),
+                SoundEvents.WOODEN_BUTTON_CLICK_OFF, SoundSource.BLOCKS, 0.7F, 0.5F);
 
         ExposureModel.Result result = ExposureModel.evaluate(payload.gray(), exposure, session.light());
         LOG.info("[ogp] exposed at {}: light={} ticks={} required={} frames={} band={}",
