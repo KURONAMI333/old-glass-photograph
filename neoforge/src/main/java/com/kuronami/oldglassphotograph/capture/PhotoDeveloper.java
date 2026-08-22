@@ -82,8 +82,9 @@ public final class PhotoDeveloper {
             return false;
         }
         if (!latent.hasPixels()) {
-            // client 側の複製（stream codec が pixel を送らない）を掴んでいる。server では起きないはず。
-            LOG.error("[ogp][measure-1] latent has {} bytes (expected {}) - pixels were lost",
+            // 潜像の pixel が欠けている。§5(c) で pixel は client へも同期しているので、
+            // ここに来るのは保存データが壊れた時だけ。
+            LOG.error("[ogp] latent has {} bytes (expected {}) - pixels were lost",
                     latent.pixels().length, LatentImage.SIZE);
             player.sendSystemMessage(Component.literal("The plate is blank."), true);
             return false;
@@ -106,7 +107,7 @@ public final class PhotoDeveloper {
         double traceIntensity = traceIntensity(result.dose(), fogTicks);
         byte[] traced = applyPlateTraces(exposed, traceIntensity, traceSeed);
 
-        LOG.info("[ogp][expose] develop: exposureTicks={} required={} dose={} light={} gain={} band={} "
+        LOG.debug("[ogp][expose] develop: exposureTicks={} required={} dose={} light={} gain={} band={} "
                         + "meanLuma={} clipped={}% crushed={}% fogTicks={} traceIntensity={}",
                 exposure, result.requiredTicks(), result.dose(), latent.light(), result.gain(),
                 result.band(), result.meanLuma(), result.clippedPct(), result.crushedPct(),
