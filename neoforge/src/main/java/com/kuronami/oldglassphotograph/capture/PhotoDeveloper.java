@@ -3,6 +3,7 @@ package com.kuronami.oldglassphotograph.capture;
 import com.kuronami.oldglassphotograph.OgpRegistry;
 import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.component.PhotoCredit;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -128,6 +129,9 @@ public final class PhotoDeveloper {
 
         ItemStack photo = new ItemStack(OgpRegistry.PHOTOGRAPH.get());
         photo.set(DataComponents.MAP_ID, id);
+        // 撮影者と日付。ここが唯一の書き込み口で、以後この写真では変わらない。
+        photo.set(OgpDataComponents.PHOTO_CREDIT.get(),
+                new PhotoCredit(player.getGameProfile().name(), PhotoCredit.dayOf(level.getGameTime())));
 
         plate.shrink(1);
         if (!player.addItem(photo)) {
