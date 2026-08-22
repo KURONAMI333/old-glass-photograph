@@ -172,7 +172,9 @@ public final class OgpRegistry {
             event.accept(FIXER.get());
             event.accept(WET_PLATE_CAMERA_ITEM.get());
             event.accept(DARKROOM_TABLE_ITEM.get());
-            event.accept(PHOTOGRAPH.get());
+            // 写真はタブに出さない。像を持たない写真は白紙の板でしかなく、
+            // JEI の一覧にも中身の無いアイテムとして並ぶ（出所: 2026-08-23 kura）。
+            // 入手経路は定着だけで、クリエイティブから配る意味が無い。
         }
     }
 
