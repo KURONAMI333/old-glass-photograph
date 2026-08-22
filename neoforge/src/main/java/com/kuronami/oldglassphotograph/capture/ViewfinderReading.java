@@ -6,6 +6,9 @@ package com.kuronami.oldglassphotograph.capture;
  *
  * <p>光の読みと、撮れない理由を 1 つの列挙で持つ。server が判定して ordinal だけを送り、
  * 文面は client が持つ（MOD は英語のみ＝§2 なので、文面を server 側で組む理由が無い）。
+ *
+ * <p><b>撮れない理由には必ず「次に何をすればいいか」を付ける</b>（kura 実機の
+ * 「撮影の仕方がよくわかんない」への導線。GUI は作らないので、この 1 行が唯一の教え口）。
  */
 public enum ViewfinderReading {
 
@@ -18,12 +21,12 @@ public enum ViewfinderReading {
     /** 上限まで開けても目標に届かない。撮れるが露光不足になる。 */
     TOO_DARK("Too dark. The plate will not take a full image here.", true),
 
-    NO_PLATE("No plate loaded.", false),
-    ALREADY_EXPOSED("This plate already holds a latent image. Take it out and develop it.", false),
-    NOT_SENSITIZED("This plate is not sensitized. Coat it with a Collodion Kit first.", false),
-    DRIED("The collodion dried out. The plate is clean again.", false),
+    NO_PLATE("No plate loaded. Sneak to step back, then load a wet plate.", false),
+    ALREADY_EXPOSED("This plate already holds a latent image. Sneak-click to take it out.", false),
+    NOT_SENSITIZED("Not sensitized. Coat it in a Darkroom Table with a Collodion Kit.", false),
+    DRIED("The collodion dried out. Coat the plate again and reload it.", false),
     /** 露光を終えるまでに板が乾く。シャッターを開けない（板は消費しないので安全側）。 */
-    WOULD_DRY("The plate would dry out before the exposure finishes.", false);
+    WOULD_DRY("The plate would dry out mid-exposure. Load a freshly coated one.", false);
 
     private final String text;
     private final boolean canShoot;
@@ -43,7 +46,7 @@ public enum ViewfinderReading {
         return canShoot ? text + " Click again to open the shutter." : text;
     }
 
-    /** 撮れなかった時に actionbar へ出す 1 行（操作の案内は付けない）。 */
+    /** 撮れなかった時に actionbar へ出す 1 行（撮れない理由には次の一手が含まれている）。 */
     public String reason() {
         return text;
     }
