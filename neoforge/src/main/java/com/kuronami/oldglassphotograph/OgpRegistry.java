@@ -11,7 +11,10 @@ import com.kuronami.oldglassphotograph.item.PhotographItem;
 import com.kuronami.oldglassphotograph.item.WetPlateCameraBlockItem;
 import net.minecraft.world.item.BlockItem;
 import com.kuronami.oldglassphotograph.network.PhotoCaptureAbortPayload;
-import com.kuronami.oldglassphotograph.network.PhotoCaptureRequestPayload;
+import com.kuronami.oldglassphotograph.network.ShutterOpenPayload;
+import com.kuronami.oldglassphotograph.network.ShutterRequestPayload;
+import com.kuronami.oldglassphotograph.network.ViewfinderClosePayload;
+import com.kuronami.oldglassphotograph.network.ViewfinderOpenPayload;
 import com.kuronami.oldglassphotograph.network.PhotoMapPixelsPayload;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
@@ -128,7 +131,15 @@ public final class OgpRegistry {
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
         // S2C はハンドラ無しで登録し、実体は client の RegisterClientPayloadHandlersEvent で付ける。
-        registrar.playToClient(PhotoCaptureRequestPayload.TYPE, PhotoCaptureRequestPayload.CODEC);
+        registrar.playToClient(ViewfinderOpenPayload.TYPE, ViewfinderOpenPayload.CODEC);
+        registrar.playToClient(ShutterOpenPayload.TYPE, ShutterOpenPayload.CODEC);
+        registrar.playToClient(ViewfinderClosePayload.TYPE, ViewfinderClosePayload.CODEC);
+        registrar.playToServer(ShutterRequestPayload.TYPE, ShutterRequestPayload.CODEC,
+                (payload, context) -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        PhotoCaptureController.openShutter(player, payload);
+                    }
+                });
         registrar.playToServer(PhotoMapPixelsPayload.TYPE, PhotoMapPixelsPayload.CODEC,
                 (payload, context) -> {
                     if (context.player() instanceof ServerPlayer player) {

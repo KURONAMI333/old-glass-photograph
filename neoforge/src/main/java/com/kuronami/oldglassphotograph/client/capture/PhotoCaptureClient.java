@@ -1,14 +1,24 @@
 package com.kuronami.oldglassphotograph.client.capture;
 
+import com.kuronami.oldglassphotograph.OldGlassPhotograph;
 import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
+import com.kuronami.oldglassphotograph.capture.ViewfinderReading;
 import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.network.PhotoCaptureAbortPayload;
-import com.kuronami.oldglassphotograph.network.PhotoCaptureRequestPayload;
 import com.kuronami.oldglassphotograph.network.PhotoMapPixelsPayload;
+import com.kuronami.oldglassphotograph.network.ShutterOpenPayload;
+import com.kuronami.oldglassphotograph.network.ShutterRequestPayload;
+import com.kuronami.oldglassphotograph.network.ViewfinderClosePayload;
+import com.kuronami.oldglassphotograph.network.ViewfinderOpenPayload;
 import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Marker;
@@ -16,16 +26,23 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * client 側の露光。型2（プレイヤーの描画カメラを設置 Camera へ一時的に移す）。
+ * client 側の撮影。型2（プレイヤーの描画カメラを設置 Camera へ一時的に移す）。
+ *
+ * <p><b>操作は 2 つのクリックで挟む</b>（{@code MODJAM_DECISIONS_OGP.md} §31）。
+ * 1 回目でファインダーに入り、何秒でもそのまま構図と光を読む。2 回目でシャッターが開き、
+ * 目標に達すると自動で閉じて視点が戻る。途中でもう一度クリックすればそこで閉じる。
+ * <b>キーの押しっぱなしは撮影経路のどこにも無い。</b>
  *
  * <p><b>露光は 1 枚の撮影ではなく、窓のあいだの複数フレームの輝度平均。</b>
  * 実物の湿板写真で動体が消えるのは露光中の光を平均するからで、同じ原理をそのまま置いている。
@@ -49,59 +66,76 @@ public final class PhotoCaptureClient {
     private static final int CALLBACK_TIMEOUT_TICKS = 200;
 
     /**
-     * 押し始めてから露光が始まるまで（＝ファインダーだけの時間）。
+     * ファインダーに入ってからシャッターを開けられるようになるまで。
      *
-     * <p>ここまでに離せば「覗いただけ」で、板も薬品も消費しない。撮る前に構図と
-     * <b>いま何が動いているか</b>を見るための時間（{@code MODJAM_DECISIONS_OGP.md} §2 Fun 案1）。
-     * カメラ実体を移した直後の補間が落ち着く時間（従来の settle 12 tick）も内側に含む。
+     * <p>カメラ実体を移した直後は構図がまだ落ち着いていないので、その間に開いた光は捨てたい。
+     * 早すぎるクリックは無視せず<b>覚えておいて</b>この tick で送るので、player からは見えない。
      */
-    private static final int PEEK_ARM_TICKS = 20;
+    private static final int SHUTTER_READY_TICKS = 6;
 
-    /** 覗くだけで離した後、視点を戻すまでの余韻。短すぎると一瞬すぎて構図が読めない。 */
-    private static final int PEEK_TAIL_TICKS = 40;
+    /** シャッター要求への返事が来ない時に、もう一度クリックできるようにするまでの tick。 */
+    private static final int SHUTTER_REPLY_TIMEOUT_TICKS = 100;
 
     /**
-     * 何があっても視点を戻す上限。露光の全経路（arm + 露光 80 + コールバック待ち 200）を覆う。
+     * 何があっても視点を戻す上限。<b>ファインダーで構えている間は数えない</b>
+     * （何秒でも覗けるのが §31 の要件）。露光が始まってからの全経路を覆う。
      *
      * <p>カメラ実体のまま戻れなくなるのは、遊ぶ側から見て MOD が壊れたのと同じ。
      * 経路を増やすたびに個別の出口を数えるのではなく、無条件の出口を 1 本置く。
      */
-    private static final int STUCK_GUARD_TICKS = PEEK_ARM_TICKS + PEEK_TAIL_TICKS
-            + PhotoCaptureController.MAX_EXPOSURE_TICKS + CALLBACK_TIMEOUT_TICKS + 40;
+    private static final int STUCK_GUARD_TICKS =
+            PhotoCaptureController.MAX_EXPOSURE_TICKS + CALLBACK_TIMEOUT_TICKS + 40;
 
-    private enum Phase { IDLE, PEEK, TAIL, SETTLING, EXPOSING, WAITING }
+    private enum Phase { IDLE, PEEK, EXPOSING, WAITING }
 
     private static Phase phase = Phase.IDLE;
 
     // --- 待ちはすべて別フィールドで持つ（1 つを使い回すと必ず壊れる） ---
-    private static int settleLeft;
     private static int peekElapsed;
-    private static int tailLeft;
     private static int exposeElapsed;
     private static int waitLeft;
     private static int guardTicks;
-
-    /** 露光が始められる session か（server が板を検査した結果）。false なら覗くだけ。 */
-    private static boolean armed;
+    private static int shutterWait;
 
     /**
-     * 露光が閉じた後もキーが押されたままなら、離すまで使用キーを殺す。
+     * シャッターが閉じた後もキーが押されたままなら、離すまで使用キーを殺す。
      *
-     * <p>{@code MODJAM_DECISIONS_OGP.md} §9「それ以降は押し続けても何も起きない」。
-     * これが無いと、押しっぱなしのまま vanilla の使用ループが 4 tick ごとに再発火して
-     * 2 回目の露光要求（＝二重露光ガードのメッセージ連打）になる。
+     * <p>2 回目のクリックで閉じた瞬間はキーが押されている。ここで解放すると
+     * vanilla の使用ループ（{@code keyUse.isDown() && rightClickDelay == 0}）が
+     * <b>同じ 1 回の押下でファインダーに入り直す</b>。
      */
     private static boolean awaitRelease;
 
+    /** 前 tick の使用キーの状態。押下の立ち上がりだけをクリックとして拾う。 */
+    private static boolean useDownLast;
+
+    /**
+     * ファインダーに入った時点で移動・スニークのキーが押されていた。
+     *
+     * <p>歩きながらカメラを右クリックすると入った直後に出てしまうので、
+     * 一度離すまでは出口として数えない。
+     */
+    private static boolean exitKeysLatched;
+
+    /** シャッター要求を送って返事を待っている。 */
+    private static boolean shutterRequested;
+
+    /** {@link #SHUTTER_READY_TICKS} より前に押されたクリック。落ち着いたら送る。 */
+    private static boolean shutterQueued;
+
     private static int token;
-    private static BlockPos target;
+    private static BlockPos basePos;
+    private static BlockPos lensPos;
     private static float targetYaw;
     private static float targetPitch;
     private static int maxExposeTicks;
     private static int intervalTicks;
 
-    private static Entity marker;
-    private static Entity savedCamera;
+    /** 覗いている間に描く 1 行。撮れない状態ならその理由。 */
+    private static @Nullable ViewfinderReading reading;
+
+    private static @Nullable Entity marker;
+    private static @Nullable Entity savedCamera;
     private static boolean hudWasHidden;
 
     // --- 累積 ---
@@ -109,33 +143,18 @@ public final class PhotoCaptureClient {
     private static boolean captureDue;
     private static int framesDispatched;
     private static int framesCompleted;
-    private static long captureNanos;
-    private static long accumulateNanos;
-    private static boolean callbackRanSinceLastFrame;
-    private static long captureFrameNanoSum;
-    private static int captureFrameCount;
-    private static volatile byte[] result;
+    private static volatile byte @Nullable [] result;
     /** 露光ごとに増える。コールバックが前の露光のものかを見分ける。 */
     private static int sessionId;
     private static int resultFrames;
     private static int resultExposeTicks;
-
-    // --- フレーム時間の計測（コスト測定用） ---
-    private static final int RING = 240;
-    private static final long[] FRAME_NANOS = new long[RING];
-    private static int ringIndex;
-    private static long lastFrameNano;
-    private static double baselineMeanMs;
-    private static double baselineMaxMs;
-    private static long exposeFrameNanoSum;
-    private static long exposeFrameNanoMax;
-    private static int exposeFrameCount;
 
     private PhotoCaptureClient() {
     }
 
     public static void init(IEventBus modBus) {
         modBus.addListener(PhotoCaptureClient::registerHandlers);
+        modBus.addListener(PhotoCaptureClient::registerGuiLayers);
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, PhotoCaptureClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(RenderLevelStageEvent.AfterLevel.class, PhotoCaptureClient::onAfterLevel);
         NeoForge.EVENT_BUS.addListener(ViewportEvent.ComputeFov.class, PhotoCaptureClient::onComputeFov);
@@ -143,7 +162,41 @@ public final class PhotoCaptureClient {
     }
 
     private static void registerHandlers(RegisterClientPayloadHandlersEvent event) {
-        event.register(PhotoCaptureRequestPayload.TYPE, (payload, context) -> begin(payload));
+        event.register(ViewfinderOpenPayload.TYPE, (payload, context) -> openViewfinder(payload));
+        event.register(ShutterOpenPayload.TYPE, (payload, context) -> openShutter(payload));
+        event.register(ViewfinderClosePayload.TYPE, (payload, context) -> closeViewfinder());
+    }
+
+    /**
+     * 覗いている間の光の読みを描く 1 行。
+     *
+     * <p>vanilla の actionbar（{@code OVERLAY_MESSAGE} レイヤ）は HUD が隠れていると描かれないので、
+     * ここに専用のレイヤを置く。{@code RegisterGuiLayersEvent} で足したレイヤは
+     * vanilla のように {@code hudVisible} で包まれないため、HUD を隠したままでも描かれる。
+     *
+     * <p>この 1 行は写真に写り込まない。撮影は {@code RenderLevelStageEvent.AfterLevel}＝
+     * GUI を合成する前の mainRenderTarget から読むため。
+     */
+    private static void registerGuiLayers(RegisterGuiLayersEvent event) {
+        event.registerAboveAll(
+                Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "viewfinder_reading"),
+                PhotoCaptureClient::renderReading);
+    }
+
+    private static void renderReading(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+        ViewfinderReading current = reading;
+        if (phase != Phase.PEEK || current == null) {
+            return;
+        }
+        Font font = Minecraft.getInstance().font;
+        Component line = Component.literal(current.line());
+        // 位置と描き方は vanilla の actionbar（Hud.extractOverlayMessage）に合わせる。
+        graphics.nextStratum();
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(graphics.guiWidth() / 2.0F, graphics.guiHeight() - 68.0F);
+        int width = font.width(line);
+        graphics.textWithBackdrop(font, line, -width / 2, -4, width, 0xFFFFFFFF);
+        graphics.pose().popMatrix();
     }
 
     /**
@@ -158,12 +211,12 @@ public final class PhotoCaptureClient {
     }
 
     /**
-     * 露光中は使用キーの再発火を殺す。
+     * ファインダーに入っている間は vanilla の使用を殺す。
      *
      * <p>カメラ実体が Marker になっているあいだ、vanilla の使用ループは
-     * <b>設置 Camera ではなくレンズの先</b>を pick して 4 tick ごとに use を撃つ。
-     * 押しっぱなしで露光を伸ばす操作が、そのまま「視界の先のブロックを right click し続ける」
-     * ことになるので、露光中は入口で止める。
+     * <b>設置 Camera ではなくレンズの先</b>を pick して use を撃つ。シャッターのつもりの
+     * クリックが「視界の先のブロックを right click する」ことになるので、入口で止める。
+     * クリック自体は {@link #onClientTick} が使用キーの立ち上がりから直接拾う。
      */
     private static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
         if (phase != Phase.IDLE || awaitRelease) {
@@ -172,111 +225,128 @@ public final class PhotoCaptureClient {
         }
     }
 
-    private static void begin(PhotoCaptureRequestPayload payload) {
+    /** 1 回目のクリック。カメラ視点へ移り、光の読みを出す。ここではまだ何も撮らない。 */
+    private static void openViewfinder(ViewfinderOpenPayload payload) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) {
             return;
         }
         if (phase != Phase.IDLE) {
-            LOG.warn("[ogp] viewfinder already active ({}), releasing token {}", phase, payload.token());
-            // server が予約した session を放置すると、カメラが 20 秒間「撮影中」のまま固まる。
-            if (payload.token() != 0) {
-                ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
-                        payload.token(), 0, 0, PhotoCaptureAbortPayload.REASON_PEEK));
-            }
             return;
         }
-        token = payload.token();
-        armed = payload.token() != 0;
-        target = payload.pos();
+        token = 0;
+        basePos = payload.basePos();
+        lensPos = payload.lensPos();
         targetYaw = payload.yaw();
         targetPitch = payload.pitch();
-        maxExposeTicks = Math.max(1, payload.maxExposeTicks());
-        intervalTicks = Math.max(1, payload.intervalTicks());
+        reading = payload.reading();
 
         double dx = -Math.sin(Math.toRadians(targetYaw));
         double dz = Math.cos(Math.toRadians(targetYaw));
-        Vec3 eye = Vec3.atCenterOf(target).add(dx * LENS_OFFSET, 0.0, dz * LENS_OFFSET);
+        Vec3 eye = Vec3.atCenterOf(lensPos).add(dx * LENS_OFFSET, 0.0, dz * LENS_OFFSET);
 
-        marker = new Marker(EntityTypes.MARKER, mc.level);
-        marker.snapTo(eye.x, eye.y, eye.z, targetYaw, targetPitch);
-        marker.setOldPosAndRot();
+        Marker placed = new Marker(EntityTypes.MARKER, mc.level);
+        placed.snapTo(eye.x, eye.y, eye.z, targetYaw, targetPitch);
+        placed.setOldPosAndRot();
+        marker = placed;
 
         savedCamera = mc.getCameraEntity();
         hudWasHidden = mc.gui.hud.isHidden();
         if (!hudWasHidden) {
             mc.gui.hud.toggle();
         }
-        mc.setCameraEntity(marker);
+        mc.setCameraEntity(placed);
 
+        sessionId++;
+        result = null;
+        peekElapsed = 0;
+        guardTicks = 0;
+        shutterWait = 0;
+        shutterRequested = false;
+        shutterQueued = false;
+        useDownLast = mc.options.keyUse.isDown();
+        exitKeysLatched = exitKeyDown(mc);
+        phase = Phase.PEEK;
+    }
+
+    /** 2 回目のクリックを server が通した。ここから光が溜まりはじめる。 */
+    private static void openShutter(ShutterOpenPayload payload) {
+        if (phase != Phase.PEEK) {
+            // すでにファインダーから出た後に返事が届いた。session を放置すると
+            // カメラが timeout まで「撮影中」のまま固まる。
+            ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
+                    payload.token(), 0, 0, PhotoCaptureAbortPayload.REASON_LEFT));
+            return;
+        }
+        token = payload.token();
+        maxExposeTicks = Math.max(1, payload.window());
+        intervalTicks = Math.max(1, payload.interval());
         sessionId++;
         java.util.Arrays.fill(SUM, 0);
         framesDispatched = 0;
         framesCompleted = 0;
-        captureNanos = 0L;
-        accumulateNanos = 0L;
-        captureFrameNanoSum = 0L;
-        captureFrameCount = 0;
-        callbackRanSinceLastFrame = false;
-        captureDue = false;
         result = null;
         exposeElapsed = 0;
-        peekElapsed = 0;
-        tailLeft = 0;
         guardTicks = 0;
-        settleLeft = payload.settleTicks();
-
-        exposeFrameNanoSum = 0L;
-        exposeFrameNanoMax = 0L;
-        exposeFrameCount = 0;
-        snapshotBaseline();
-
-        phase = Phase.PEEK;
-        LOG.info("[ogp][expose] viewfinder token={} armed={} pos={} yaw={} settle={} max={} interval={}",
-                token, armed, target, targetYaw, settleLeft, maxExposeTicks, intervalTicks);
+        shutterRequested = false;
+        shutterQueued = false;
+        captureDue = true; // 露光の 1 枚目は窓の頭で撮る
+        phase = Phase.EXPOSING;
     }
 
-    private static Phase startExposure() {
-        exposeElapsed = 0;
-        captureDue = true; // 露光の 1 枚目は窓の頭で撮る
-        return Phase.EXPOSING;
+    /** server がシャッターを断った。視点を戻す（理由は actionbar で届く）。 */
+    private static void closeViewfinder() {
+        if (phase != Phase.PEEK) {
+            return;
+        }
+        restore();
+        phase = Phase.IDLE;
     }
 
     private static void onClientTick(ClientTickEvent.Post event) {
-        if (awaitRelease && !Minecraft.getInstance().options.keyUse.isDown()) {
+        Minecraft mc = Minecraft.getInstance();
+        if (awaitRelease && !mc.options.keyUse.isDown()) {
             awaitRelease = false;
         }
-        if (phase != Phase.IDLE && stuckGuard()) {
+        if (phase == Phase.IDLE) {
+            useDownLast = mc.options.keyUse.isDown();
             return;
         }
+        if (stuckGuard()) {
+            return;
+        }
+        boolean useDown = mc.options.keyUse.isDown();
+        boolean clicked = useDown && !useDownLast;
+        useDownLast = useDown;
+
         switch (phase) {
-            // ファインダー。まだ 1 枚も撮っていない。ここで離せば「覗いただけ」。
+            // ファインダー。何秒でもここに居られる。撮るのはもう一度クリックした時だけ。
             case PEEK -> {
                 peekElapsed++;
-                if (released()) {
-                    endPeek();
-                } else if (peekElapsed >= Math.max(PEEK_ARM_TICKS, settleLeft) && armed) {
-                    phase = startExposure();
-                }
-            }
-            case TAIL -> {
-                if (--tailLeft <= 0) {
+                if (exitPressed(mc)) {
                     restore();
                     phase = Phase.IDLE;
+                    return;
+                }
+                if (clicked) {
+                    shutterQueued = true;
+                }
+                if (shutterRequested && ++shutterWait > SHUTTER_REPLY_TIMEOUT_TICKS) {
+                    // 返事が来ない。もう一度クリックできる状態へ戻す。
+                    shutterRequested = false;
+                    shutterWait = 0;
+                }
+                if (shutterQueued && !shutterRequested && peekElapsed >= SHUTTER_READY_TICKS) {
+                    shutterQueued = false;
+                    shutterRequested = true;
+                    shutterWait = 0;
+                    ClientPacketDistributor.sendToServer(new ShutterRequestPayload(basePos));
                 }
             }
-            case SETTLING -> {
-                // 静定中に離した = そもそも 1 枚も撮れていない。中止（プレートは消費しない）。
-                if (released()) {
-                    abort();
-                } else if (--settleLeft <= 0) {
-                    phase = startExposure();
-                }
-            }
+            // シャッターが開いている。窓が閉じるか、もう一度クリックするまで。
             case EXPOSING -> {
                 exposeElapsed++;
-                if (exposureShouldEnd()) {
-                    // 規定枚数に満たないうちに離したら「失敗」ではなく「中止」。
+                if (clicked || exposeElapsed >= maxExposeTicks) {
                     if (framesDispatched < PhotoCaptureController.MIN_EXPOSURE_FRAMES) {
                         abort();
                     } else {
@@ -292,8 +362,8 @@ public final class PhotoCaptureClient {
                     restore();
                     ClientPacketDistributor.sendToServer(
                             new PhotoMapPixelsPayload(token, resultExposeTicks, resultFrames, pixels));
-                    LOG.info("[ogp][expose] sent avg of {} frames, {} ticks, {} bytes (token {})",
-                            resultFrames, resultExposeTicks, pixels.length, token);
+                    LOG.debug("[ogp] sent avg of {} frames, {} ticks (token {})",
+                            resultFrames, resultExposeTicks, token);
                     result = null;
                     phase = Phase.IDLE;
                 } else if (--waitLeft <= 0) {
@@ -308,24 +378,30 @@ public final class PhotoCaptureClient {
         }
     }
 
-    /**
-     * 覗くだけで終わった。板には一切触らせない（server の session を解放するだけ）。
-     * 視点は少し残してから戻す（一瞬で戻ると構図が読めない）。
-     */
-    private static void endPeek() {
-        if (token != 0) {
-            ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
-                    token, 0, 0, PhotoCaptureAbortPayload.REASON_PEEK));
+    /** 移動・スニークのキーが押されているか。 */
+    private static boolean exitKeyDown(Minecraft mc) {
+        return mc.options.keyShift.isDown()
+                || mc.options.keyUp.isDown()
+                || mc.options.keyDown.isDown()
+                || mc.options.keyLeft.isDown()
+                || mc.options.keyRight.isDown()
+                || mc.options.keyJump.isDown();
+    }
+
+    /** スニークか移動で、撮らずにファインダーから出る（{@code MODJAM_DECISIONS_OGP.md} §31）。 */
+    private static boolean exitPressed(Minecraft mc) {
+        if (!exitKeyDown(mc)) {
+            exitKeysLatched = false;
+            return false;
         }
-        LOG.info("[ogp][expose] viewfinder only, no exposure (token={} ticks={})", token, peekElapsed);
-        tailLeft = PEEK_TAIL_TICKS;
-        phase = Phase.TAIL;
+        return !exitKeysLatched;
     }
 
     /**
      * 無条件の出口。どの経路で来ても、カメラ実体のまま戻れなくなることは無い。
      *
-     * <p>押しっぱなしでファインダーを覗いている間は「止まっている」わけではないので数えない。
+     * <p>ファインダーで構えている間は「止まっている」わけではないので数えない
+     * （出口はクリック・スニーク・移動の 3 つ）。
      *
      * @return 強制的に戻したか
      */
@@ -336,7 +412,7 @@ public final class PhotoCaptureClient {
             forceRestore();
             return true;
         }
-        if (phase == Phase.PEEK && !released()) {
+        if (phase == Phase.PEEK) {
             guardTicks = 0;
             return false;
         }
@@ -351,7 +427,7 @@ public final class PhotoCaptureClient {
     private static void forceRestore() {
         if (token != 0 && phase != Phase.WAITING) {
             ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
-                    token, exposeElapsed, framesDispatched, PhotoCaptureAbortPayload.REASON_PEEK));
+                    token, exposeElapsed, framesDispatched, PhotoCaptureAbortPayload.REASON_LEFT));
         }
         restore();
         phase = Phase.IDLE;
@@ -359,22 +435,9 @@ public final class PhotoCaptureClient {
         sessionId++;
     }
 
-    /** 露光窓を閉じるか。{@code maxExposeTicks} に達したら押しっぱなしでも打ち切る。 */
-    private static boolean exposureShouldEnd() {
-        if (exposeElapsed >= maxExposeTicks) {
-            return true;
-        }
-        return released();
-    }
-
-    /** 使用キーが離れているか。 */
-    private static boolean released() {
-        return !Minecraft.getInstance().options.keyUse.isDown();
-    }
-
     /**
      * 露光を中止する。server の session を解放して、プレートには何も書かせない。
-     * 押し間違い・気が変わったで板を失わせないための経路。
+     * シャッターが開いた直後に閉じても板を失わせないための経路。
      */
     private static void abort() {
         int ticks = exposeElapsed;
@@ -382,10 +445,11 @@ public final class PhotoCaptureClient {
         restore();
         phase = Phase.IDLE;
         result = null;
+        sessionId++;
         ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
                 token, ticks, frames, PhotoCaptureAbortPayload.REASON_TOO_SHORT));
-        LOG.info("[ogp][expose] aborted token={} ticks={} frames={} (below {} frames)",
-                token, ticks, frames, PhotoCaptureController.MIN_EXPOSURE_FRAMES);
+        LOG.debug("[ogp] exposure closed with {} frames (below {}); plate untouched",
+                frames, PhotoCaptureController.MIN_EXPOSURE_FRAMES);
     }
 
     /** 露光窓を閉じる。累積を平均へ落とし、コールバックの回収へ移る。 */
@@ -393,13 +457,6 @@ public final class PhotoCaptureClient {
         resultExposeTicks = exposeElapsed;
         phase = Phase.WAITING;
         waitLeft = CALLBACK_TIMEOUT_TICKS;
-        double meanMs = exposeFrameCount == 0 ? 0.0 : exposeFrameNanoSum / (double) exposeFrameCount / 1.0e6;
-        LOG.info("[ogp][cost] exposure closed: ticks={} frames={} dispatchMsPerCapture={} "
-                        + "callbackMsPerCapture={} frameMs mean={} max={} | baseline mean={} max={}",
-                exposeElapsed, framesDispatched,
-                fmt(framesDispatched == 0 ? 0.0 : captureNanos / 1.0e6 / framesDispatched),
-                fmt(framesDispatched == 0 ? 0.0 : accumulateNanos / 1.0e6 / framesDispatched),
-                fmt(meanMs), fmt(exposeFrameNanoMax / 1.0e6), fmt(baselineMeanMs), fmt(baselineMaxMs));
         tryFinalize();
     }
 
@@ -410,41 +467,29 @@ public final class PhotoCaptureClient {
         }
         int frames = Math.max(1, framesCompleted);
         byte[] out = new byte[LatentImage.SIZE];
-        long total = 0L;
         for (int i = 0; i < LatentImage.SIZE; i++) {
-            int v = SUM[i] / frames;
-            out[i] = (byte) Math.clamp(v, 0, 255);
-            total += v;
+            out[i] = (byte) Math.clamp(SUM[i] / frames, 0, 255);
         }
         resultFrames = framesCompleted;
         result = out;
-        LOG.info("[ogp][cost] frameMs on readback frames: mean={} n={} | other frames: mean={} n={}",
-                fmt(captureFrameCount == 0 ? 0.0 : captureFrameNanoSum / (double) captureFrameCount / 1.0e6),
-                captureFrameCount,
-                fmt(exposeFrameCount == captureFrameCount ? 0.0
-                        : (exposeFrameNanoSum - captureFrameNanoSum)
-                                / (double) (exposeFrameCount - captureFrameCount) / 1.0e6),
-                exposeFrameCount - captureFrameCount);
-        LOG.info("[ogp][expose] averaged {} frames, mean luma={}", framesCompleted,
-                fmt(total / (double) LatentImage.SIZE));
     }
 
     private static void restore() {
         Minecraft mc = Minecraft.getInstance();
-        // 視点が戻った時点でまだ押しっぱなしなら、離すまで使用キーを殺す。
-        // 「80 tick で終わり、それ以降は押し続けても何も起きない」（DECISIONS §9）の実体。
+        // 視点が戻った時点でまだ押しっぱなしなら、離すまで使用キーを殺す
+        // （同じ 1 回の押下でファインダーへ入り直すのを防ぐ）。
         awaitRelease = mc.options.keyUse.isDown();
+        useDownLast = awaitRelease;
         mc.setCameraEntity(savedCamera != null ? savedCamera : mc.player);
         if (!hudWasHidden && mc.gui.hud.isHidden()) {
             mc.gui.hud.toggle();
         }
         marker = null;
         savedCamera = null;
-        LOG.info("[ogp] restored: camera={} hudHidden={}", mc.getCameraEntity(), mc.gui.hud.isHidden());
+        reading = null;
     }
 
     private static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
-        recordFrame();
         if (phase != Phase.EXPOSING || !captureDue) {
             return;
         }
@@ -452,73 +497,30 @@ public final class PhotoCaptureClient {
         Minecraft mc = Minecraft.getInstance();
         final int idx = framesDispatched++;
         final int session = sessionId;
-        long t0 = System.nanoTime();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), img -> {
             // ここは同フレームでは走らない（実測: dispatch の約 1 フレーム後）。
-            // したがって dispatch の所要と callback 本体の所要は別に測る。
-            long c0 = System.nanoTime();
             if (session != sessionId) {
                 // 中止した露光の遅れて届いたコールバック。次の露光の累積を汚さない。
                 img.close();
                 return;
             }
             try {
-                accumulate(img, idx);
+                accumulate(img);
             } catch (Throwable t) {
-                LOG.error("[ogp] capture accumulation failed", t);
+                LOG.error("[ogp] capture accumulation failed on frame {}", idx, t);
             } finally {
                 img.close();
             }
-            accumulateNanos += System.nanoTime() - c0;
-            callbackRanSinceLastFrame = true;
             framesCompleted++;
             tryFinalize();
         });
-        captureNanos += System.nanoTime() - t0;
     }
 
-    /** フレーム間隔を常に記録しておく（露光していない間が baseline になる）。 */
-    private static void recordFrame() {
-        long now = System.nanoTime();
-        if (lastFrameNano != 0L) {
-            long delta = now - lastFrameNano;
-            FRAME_NANOS[ringIndex] = delta;
-            ringIndex = (ringIndex + 1) % RING;
-            if (phase == Phase.EXPOSING || phase == Phase.WAITING) {
-                exposeFrameNanoSum += delta;
-                exposeFrameCount++;
-                exposeFrameNanoMax = Math.max(exposeFrameNanoMax, delta);
-                if (callbackRanSinceLastFrame) {
-                    captureFrameNanoSum += delta;
-                    captureFrameCount++;
-                }
-            }
-            callbackRanSinceLastFrame = false;
-        }
-        lastFrameNano = now;
-    }
-
-    private static void snapshotBaseline() {
-        long sum = 0L;
-        long max = 0L;
-        int n = 0;
-        for (long v : FRAME_NANOS) {
-            if (v > 0L) {
-                sum += v;
-                max = Math.max(max, v);
-                n++;
-            }
-        }
-        baselineMeanMs = n == 0 ? 0.0 : sum / (double) n / 1.0e6;
-        baselineMaxMs = max / 1.0e6;
-    }
-
-    /** 生フレーム -> 中央正方形クロップ -> 128x128 -> 8bit gray を SUM へ加算。 */
-    private static void accumulate(NativeImage img, int idx) throws Exception {
+    /** 生フレーム -&gt; 中央正方形クロップ -&gt; 128x128 -&gt; 8bit gray を SUM へ加算。 */
+    private static void accumulate(NativeImage img) throws Exception {
         int w = img.getWidth();
         int h = img.getHeight();
         int side = Math.min(w, h);
-        long frameSum = 0L;
         try (NativeImage small = new NativeImage(128, 128, false)) {
             img.resizeSubRectTo((w - side) / 2, (h - side) / 2, side, side, small);
             for (int y = 0; y < 128; y++) {
@@ -527,17 +529,9 @@ public final class PhotoCaptureClient {
                     int r = (argb >> 16) & 0xFF;
                     int g = (argb >> 8) & 0xFF;
                     int b = argb & 0xFF;
-                    int gray = (r * 299 + g * 587 + b * 114) / 1000;
-                    SUM[x + y * 128] += gray;
-                    frameSum += gray;
+                    SUM[x + y * 128] += (r * 299 + g * 587 + b * 114) / 1000;
                 }
             }
         }
-        // 各フレームの平均輝度。全フレームが同一なら readback が使い回されている疑い。
-        LOG.info("[ogp][frame] idx={} meanLuma={}", idx, fmt(frameSum / (double) LatentImage.SIZE));
-    }
-
-    private static String fmt(double v) {
-        return String.format(java.util.Locale.ROOT, "%.3f", v);
     }
 }
