@@ -74,7 +74,7 @@ GitHub Issues に投げてください: [Issues](https://github.com/KURONAMI333/
 
 ## Translations
 
-Old Glass Photograph は英語・日本語の2言語に対応（`en_us` / `ja_jp`）。
+9言語に対応（`en_us` / `ja_jp` / `de_de` / `es_es` / `fr_fr` / `ko_kr` / `pt_br` / `ru_ru` / `zh_cn`）。
 
 ## License
 
