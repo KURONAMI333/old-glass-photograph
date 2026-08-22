@@ -17,9 +17,13 @@ import com.kuronami.oldglassphotograph.network.ViewfinderClosePayload;
 import com.kuronami.oldglassphotograph.network.ViewfinderOpenPayload;
 import com.kuronami.oldglassphotograph.network.PhotoMapPixelsPayload;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -44,6 +48,12 @@ public final class OgpRegistry {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(OldGlassPhotograph.MODID);
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, OldGlassPhotograph.MODID);
+    public static final DeferredRegister<CreativeModeTab> TABS =
+            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, OldGlassPhotograph.MODID);
+
+    /** ローダー側のタブ内容イベントが対象タブを指すためのキー。 */
+    public static final ResourceKey<CreativeModeTab> TAB_KEY = ResourceKey.create(
+            Registries.CREATIVE_MODE_TAB, Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "main"));
 
     public static final DeferredBlock<WetPlateCameraBlock> WET_PLATE_CAMERA = BLOCKS.registerBlock(
             "wet_plate_camera",
@@ -94,6 +104,16 @@ public final class OgpRegistry {
     /** 定着液。 */
     public static final DeferredItem<Item> FIXER = ITEMS.registerSimpleItem("fixer");
 
+    /**
+     * この MOD 専用タブ。アイコンはカメラ（MOD の顔）。
+     * 中身は {@link #buildCreativeTab} が並び順を工程順で流す。
+     */
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main",
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup." + OldGlassPhotograph.MODID))
+                    .icon(() -> new ItemStack(WET_PLATE_CAMERA_ITEM.get()))
+                    .build());
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WetPlateCameraBlockEntity>>
             CAMERA_BLOCK_ENTITY = BLOCK_ENTITIES.register("wet_plate_camera",
             () -> new BlockEntityType<>(WetPlateCameraBlockEntity::new, WET_PLATE_CAMERA.get()));
@@ -110,22 +130,25 @@ public final class OgpRegistry {
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
         BLOCK_ENTITIES.register(modBus);
+        TABS.register(modBus);
         OgpDataComponents.init(modBus);
         modBus.addListener(OgpRegistry::registerPayloads);
         modBus.addListener(OgpRegistry::buildCreativeTab);
     }
 
+    /**
+     * 独自タブの中身を工程順で流す: 板 → 薬品（増感 → 現像 → 定着） → カメラ → 暗箱 → 写真。
+     * バニラタブへは配らない（二重表示防止。旧: FUNCTIONAL_BLOCKS / TOOLS_AND_UTILITIES）。
+     */
     private static void buildCreativeTab(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
-            event.accept(WET_PLATE_CAMERA_ITEM.get());
-            event.accept(DARKROOM_TABLE_ITEM.get());
-        }
-        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+        if (event.getTabKey().equals(TAB_KEY)) {
             event.accept(GLASS_PLATE.get());
-            event.accept(PHOTOGRAPH.get());
             event.accept(COLLODION_KIT.get());
             event.accept(DEVELOPER.get());
             event.accept(FIXER.get());
+            event.accept(WET_PLATE_CAMERA_ITEM.get());
+            event.accept(DARKROOM_TABLE_ITEM.get());
+            event.accept(PHOTOGRAPH.get());
         }
     }
 
