@@ -55,10 +55,22 @@ public final class OgpRegistry {
     public static final ResourceKey<CreativeModeTab> TAB_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB, Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "main"));
 
+    /**
+     * 湿板カメラ。高さ 2 ブロック（{@code MODJAM_DECISIONS_OGP.md} §18）。
+     *
+     * <p>{@code noOcclusion} が要る: モデルは脚立と蛇腹で、full cube を埋めていない。
+     * 既定の {@code canOcclude = true} のままだと {@code BlockStateBase.initCache} が
+     * occlusion shape を full cube として焼き（26.2 {@code BlockBehaviour} L498）、
+     * 隣接ブロックの面が cull される。実害: 下半分が載っている地面の上面が描かれず、
+     * 地下の洞窟が透けて見えた（2026-08-22 kura 実機・{@code run-client/screenshots/2026-08-22_18.26.14.png}）。
+     *
+     * <p>露光には影響しない。{@code ExposureModel.sampleLight} が読むのは
+     * {@code cameraPos.relative(facing)}＝レンズの前の 1 マスで、カメラ自身の遮光性とは無関係。
+     */
     public static final DeferredBlock<WetPlateCameraBlock> WET_PLATE_CAMERA = BLOCKS.registerBlock(
             "wet_plate_camera",
             WetPlateCameraBlock::new,
-            () -> BlockBehaviour.Properties.of().strength(1.5F).sound(SoundType.WOOD));
+            () -> BlockBehaviour.Properties.of().strength(1.5F).sound(SoundType.WOOD).noOcclusion());
 
     /**
      * {@code useBlockDescriptionPrefix} が要る: 26.2 の {@link net.minecraft.world.item.BlockItem} は
