@@ -38,7 +38,12 @@ public record LatentImage(byte[] pixels, int exposureTicks, int light) {
         return out;
     }
 
-    /** pixel を実際に持っているか（client 側の複製は常に false になる）。 */
+    /**
+     * pixel を実際に持っているか。
+     *
+     * <p>{@code MODJAM_DECISIONS_OGP.md} §5(c) で pixel は client へも同期しているので、
+     * 通常はどちら側でも true になる。false は保存データが壊れた時の検出用。
+     */
     public boolean hasPixels() {
         return pixels.length == SIZE;
     }
