@@ -1,11 +1,5 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "minecraft:redstone" }
-  ],
-  "result": {
-    "id": "old_glass_photograph:fixer",
-    "count": 4
-  }
+  "ingredients": [ "minecraft:redstone" ],
+  "result": { "id": "old_glass_photograph:fixer", "count": 4 }
 }

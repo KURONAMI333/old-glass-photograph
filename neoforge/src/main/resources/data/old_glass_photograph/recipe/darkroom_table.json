@@ -1,13 +1,5 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "minecraft:crafting_table" },
-    { "item": "minecraft:black_wool" },
-    { "item": "minecraft:black_wool" }
-  ],
-  "result": {
-    "id": "old_glass_photograph:darkroom_table",
-    "count": 1
-  }
+  "ingredients": [ "minecraft:crafting_table", "minecraft:black_wool", "minecraft:black_wool" ],
+  "result": { "id": "old_glass_photograph:darkroom_table" }
 }

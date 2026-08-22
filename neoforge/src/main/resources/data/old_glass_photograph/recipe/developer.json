@@ -1,12 +1,5 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "category": "misc",
-  "ingredients": [
-    { "item": "minecraft:iron_nugget" },
-    { "item": "minecraft:fermented_spider_eye" }
-  ],
-  "result": {
-    "id": "old_glass_photograph:developer",
-    "count": 4
-  }
+  "ingredients": [ "minecraft:iron_nugget", "minecraft:fermented_spider_eye" ],
+  "result": { "id": "old_glass_photograph:developer", "count": 4 }
 }
