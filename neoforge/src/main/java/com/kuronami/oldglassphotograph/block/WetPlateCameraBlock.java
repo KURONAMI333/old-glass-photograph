@@ -15,6 +15,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ScheduledTickAccess;
@@ -31,7 +32,13 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * 設置型の湿板カメラ。<b>構図は設置位置と FACING だけで決まる</b>（kura 受理済み）。
@@ -74,6 +81,69 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, HALF);
+    }
+
+    // ------------------------------------------------------------------ 当たり判定
+    //
+    // MODJAM_DECISIONS_OGP.md §17/§18/§36。モデル（wet_plate_camera_lower.json /
+    // wet_plate_camera_upper.json、a4_studio_trestle）の element 座標を FACING=NORTH 基準で
+    // そのまま箱にし、他の向きは回転で作る（モデル自体は blockstate の y 回転で作られている
+    // ので、当たり判定も同じ回転を掛ければ一致する）。はみ出し無し（0〜16 の内側のみ）。
+    //
+    // 下半分＝トレッスル（脚は細く4本、天板の下で支える中央の柱だけ太い）。
+    // 上半分＝カメラ本体（架台の続きの首は細く、蛇腹・箱の胴体は太い1枚板にして
+    // 天面 Y=12 をまるごと乗れる面にする。レンズ鏡胴など前面の小さな出っ張りは
+    // 当たり判定に起こさない＝過度な細分化をしない）。
+
+    /** 下半分（トレッスル）。脚4本 + 中央の柱。FACING=NORTH 基準。 */
+    private static final double[][] LOWER_BOXES_NORTH = {
+            {5, 0, 3, 7, 13, 5},
+            {5, 0, 11, 7, 13, 13},
+            {9, 0, 3, 11, 13, 5},
+            {9, 0, 11, 11, 13, 13},
+            {6, 13, 6, 10, 16, 10},
+    };
+
+    /** 上半分（カメラ本体）。柱の続きの首 + 蛇腹・箱を1枚にまとめた太い胴体。FACING=NORTH 基準。 */
+    private static final double[][] UPPER_BOXES_NORTH = {
+            {6, 0, 6, 10, 3, 10},
+            {2, 3, 2, 14, 12, 16},
+    };
+
+    private static final Map<Direction, VoxelShape> LOWER_SHAPES = buildShapes(LOWER_BOXES_NORTH);
+    private static final Map<Direction, VoxelShape> UPPER_SHAPES = buildShapes(UPPER_BOXES_NORTH);
+
+    private static Map<Direction, VoxelShape> buildShapes(double[][] boxesNorth) {
+        Map<Direction, VoxelShape> shapes = new EnumMap<>(Direction.class);
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            VoxelShape shape = Shapes.empty();
+            for (double[] box : boxesNorth) {
+                double[] xz = rotateNorthToFacing(dir, box[0], box[2], box[3], box[5]);
+                shape = Shapes.or(shape, Block.box(xz[0], box[1], xz[1], xz[2], box[4], xz[3]));
+            }
+            shapes.put(dir, shape);
+        }
+        return shapes;
+    }
+
+    /**
+     * FACING=NORTH 基準の (x1,z1)-(x2,z2) を、blockstate の y 回転と同じ向きで dir へ回す。
+     * NORTH→EAST は y:90（{@code getStateForPlacement} のコメントにある写像と同じ）。
+     */
+    private static double[] rotateNorthToFacing(Direction dir, double x1, double z1, double x2, double z2) {
+        return switch (dir) {
+            case EAST -> new double[]{16 - z2, x1, 16 - z1, x2};
+            case SOUTH -> new double[]{16 - x2, 16 - z2, 16 - x1, 16 - z1};
+            case WEST -> new double[]{z1, 16 - x2, z2, 16 - x1};
+            default -> new double[]{x1, z1, x2, z2};
+        };
+    }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        Map<Direction, VoxelShape> shapes = state.getValue(HALF) == DoubleBlockHalf.UPPER
+                ? UPPER_SHAPES : LOWER_SHAPES;
+        return shapes.get(state.getValue(FACING));
     }
 
     /** 覗ける立ち位置の上限距離（水平・ブロック）。これより遠いと「覗いている」と言えない。 */
