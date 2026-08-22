@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s Umsehen, um das Bild zu wählen. Erneut klicken, um den Verschluss zu öffnen.",
 
   "message.old_glass_photograph.plate.dried": "Das Kollodium ist eingetrocknet. Die Platte ist wieder sauber.",
+  "message.old_glass_photograph.plate.washed": "Im Kessel abgewaschen. Die Platte ist wieder sauber.",
   "message.old_glass_photograph.plate.load_into_camera": "Diese Platte in eine Nassplattenkamera laden und belichten.",
   "message.old_glass_photograph.plate.use_darkroom": "Dunkelkammertisch öffnen, Platte einlegen, dann Deckel mit %s in der Hand schließen.",
   "message.old_glass_photograph.plate.need_chemical": "%s in die andere Hand nehmen.",

@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.RegisterCauldronInteractionEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -158,6 +159,23 @@ public final class OgpRegistry {
         OgpDataComponents.init(modBus);
         modBus.addListener(OgpRegistry::registerPayloads);
         modBus.addListener(OgpRegistry::buildCreativeTab);
+        modBus.addListener(OgpRegistry::registerCauldronInteractions);
+    }
+
+    /**
+     * 水入り大釜で Glass Plate を洗える形にする。26.2 の {@code CauldronInteraction} は
+     * {@code Dispatcher} 方式に変わっていて（{@code WATER}/{@code LAVA}/{@code EMPTY} の
+     * {@code put} は package-private）、mod からは
+     * {@code RegisterCauldronInteractionEvent.Interaction}（mod bus 上で発火）経由でしか
+     * 登録できない（{@code NeoForge: net/neoforged/neoforge/event/RegisterCauldronInteractionEvent.java}）。
+     * dispatcher の id は namespace が {@code minecraft} だと短縮名で引かれる
+     * （{@code MC: net/minecraft/resources/Identifier.java} の {@code toShortString}）ので、
+     * 水は {@code minecraft:water} でなく短縮名 {@code "water"} を渡す
+     * （{@code MC: net/minecraft/core/cauldron/CauldronInteractions.java} が
+     * {@code newDispatcher("water")} でその名前を登録している）。
+     */
+    private static void registerCauldronInteractions(RegisterCauldronInteractionEvent.Interaction event) {
+        event.register(Identifier.withDefaultNamespace("water"), GLASS_PLATE.get(), GlassPlateItem::washInCauldron);
     }
 
     /**

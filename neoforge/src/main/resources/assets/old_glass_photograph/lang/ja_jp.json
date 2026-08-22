@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s見回して構図を決められます。もう一度クリックするとシャッターが開きます。",
 
   "message.old_glass_photograph.plate.dried": "コロジオンが乾きました。板は元のガラス乾板に戻りました。",
+  "message.old_glass_photograph.plate.washed": "水入り大釜で洗い流しました。板は元のガラス乾板に戻りました。",
   "message.old_glass_photograph.plate.load_into_camera": "この板は湿板カメラに入れて露光します。",
   "message.old_glass_photograph.plate.use_darkroom": "暗室台を開けて板を入れ、%sを手に持って蓋を閉じます。",
   "message.old_glass_photograph.plate.need_chemical": "もう一方の手に%sを持ちます。",

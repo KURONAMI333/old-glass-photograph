@@ -7,6 +7,7 @@ import com.kuronami.oldglassphotograph.capture.PhotoDeveloper;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -27,6 +28,8 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.LayeredCauldronBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -116,7 +119,24 @@ public class GlassPlateItem extends Item {
     }
 
     /**
-     * 乾いていたら板を素のガラス板へ戻す。<b>板そのものは失われない</b>（受理済みの非破壊原則）。
+     * 板から工程の component を全部外して素のガラス板へ戻す。<b>板そのものは失われない</b>
+     * （受理済みの非破壊原則）。呼ぶ側が「戻していいか」を先に判定してから呼ぶ
+     * （乾いた時は {@link #resolveDryOut}、水入り大釜で洗った時は工程を問わず
+     * {@link #washInCauldron}）。
+     */
+    private static void resetToBlank(ItemStack stack) {
+        stack.remove(OgpDataComponents.PLATE_PROCESS.get());
+        stack.remove(OgpDataComponents.LATENT_IMAGE.get());
+        stack.remove(OgpDataComponents.PLATE_FOG.get());
+        // 素の板へ戻る以上、重なる枚数も戻す。ここで {@code remove} を呼ぶと
+        // 「既定値を打ち消した」状態になり、{@code getOrDefault(MAX_STACK_SIZE, 1)} が 1 を返す。
+        // 既定値と同じ値を {@code set} すると patch から消えるので、素の板と本当に同じ物になる
+        // （{@code PatchedDataComponentMap#set}）。
+        stack.set(DataComponents.MAX_STACK_SIZE, BLANK_MAX_STACK);
+    }
+
+    /**
+     * 乾いていたら板を素のガラス板へ戻す。
      *
      * <p>乾いた板を別アイテムにして「洗い直し」の操作を足すと工程が 1 段増える。短縮の趣旨に
      * 反するので、乾いた時点で素のガラス板へ戻す形にした（失うのは塗った薬品 1 個と、
@@ -129,15 +149,53 @@ public class GlassPlateItem extends Item {
         if (p == null || !p.isDriedAt(gameTime)) {
             return false;
         }
-        stack.remove(OgpDataComponents.PLATE_PROCESS.get());
-        stack.remove(OgpDataComponents.LATENT_IMAGE.get());
-        stack.remove(OgpDataComponents.PLATE_FOG.get());
-        // 素の板へ戻る以上、重なる枚数も戻す。ここで {@code remove} を呼ぶと
-        // 「既定値を打ち消した」状態になり、{@code getOrDefault(MAX_STACK_SIZE, 1)} が 1 を返す。
-        // 既定値と同じ値を {@code set} すると patch から消えるので、素の板と本当に同じ物になる
-        // （{@code PatchedDataComponentMap#set}）。
-        stack.set(DataComponents.MAX_STACK_SIZE, BLANK_MAX_STACK);
+        resetToBlank(stack);
         return true;
+    }
+
+    /**
+     * 水入り大釜（{@code minecraft:water_cauldron}）で洗って、工程のどの段階でも
+     * 一回で素のガラス板へ戻す。{@code OgpRegistry} が
+     * {@code RegisterCauldronInteractionEvent.Interaction}（mod bus・{@code "water"} dispatcher）
+     * 経由でこのメソッドを登録する。
+     *
+     * <p>26.2 の {@code CauldronInteraction} は {@code Dispatcher} 方式（
+     * {@code NeoForge patch: net/minecraft/core/cauldron/CauldronInteraction.java}）で、
+     * {@code Dispatcher.put} は package-private のため mod からは
+     * {@code RegisterCauldronInteractionEvent} でしか登録できない
+     * （{@code NeoForge: net/neoforged/neoforge/event/RegisterCauldronInteractionEvent.java}）。
+     * 呼び出し元は {@code MC: net/minecraft/world/level/block/AbstractCauldronBlock.java}
+     * の {@code useItemOn} — {@code this.interactions.get(itemStack)} でこの Item を
+     * 引いて {@code interact} を呼ぶ。dispatcher は {@code Item} 単位の索引なので、
+     * GlassPlateItem のどの工程段階のスタックでもここへ来る。
+     *
+     * <p>旗は 1 層ずつ剥がれるが、板はそうしない。目的は「この一枚を諦めてガラスを回収する」
+     * ことなので乾燥期限を待たず即座に戻す。<b>現像済み（{@link PlateProcess.Stage#DEVELOPED}）は
+     * {@link PlateProcess#isWet()} が false で乾燥期限を持たないので、定着液を消費せず
+     * ガラスだけ回収する経路がこれしか無い</b>。
+     *
+     * <p>水位は他の洗浄操作（革防具・馬鎧・オオカミの鎧・シュルカーボックス・旗）と同じく
+     * 1 減らす（{@code MC: net/minecraft/world/level/block/LayeredCauldronBlock.java}
+     * の {@code lowerFillLevel}）。効果音は無い
+     * （{@code MC: net/minecraft/core/cauldron/CauldronInteractions.java} の
+     * {@code bannerInteraction} / {@code dyedItemIteration} も {@code playSound} を呼ばない。
+     * ブロック更新だけで効果音を持つのは液体を汲む {@code fillBucket}/{@code emptyBucket} 側）。
+     *
+     * <p>素の板は {@link #process} が null になるので対象外（洗う意味が無い）。完成した写真は
+     * {@code PhotographItem} という別クラスで、この Item 単位の登録には元々来ない。
+     */
+    public static InteractionResult washInCauldron(BlockState cauldronState, Level level, BlockPos pos,
+                                                     Player player, InteractionHand hand, ItemStack stack) {
+        if (process(stack) == null) {
+            // バニラの旗/染色アイテムと同じ「対象外」の型（他の登録済み interaction へ委ねる）。
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
+        }
+        if (!level.isClientSide()) {
+            resetToBlank(stack);
+            LayeredCauldronBlock.lowerFillLevel(cauldronState, level, pos);
+            say(player, Component.translatable("message.old_glass_photograph.plate.washed"));
+        }
+        return InteractionResult.SUCCESS;
     }
 
     /**

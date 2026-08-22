@@ -41,6 +41,7 @@
   "viewfinder.old_glass_photograph.shoot_hint": "%s Осмотритесь, чтобы выбрать кадр. Кликните снова, чтобы открыть затвор.",
 
   "message.old_glass_photograph.plate.dried": "Коллодий высох. Пластина снова чистая.",
+  "message.old_glass_photograph.plate.washed": "Смыто в котле. Пластина снова чистая.",
   "message.old_glass_photograph.plate.load_into_camera": "Зарядите эту пластину в камеру мокрого коллодия и экспонируйте её.",
   "message.old_glass_photograph.plate.use_darkroom": "Откройте стол тёмной комнаты, положите пластину внутрь, затем закройте крышку, держа %s.",
   "message.old_glass_photograph.plate.need_chemical": "Держите %s в другой руке.",
