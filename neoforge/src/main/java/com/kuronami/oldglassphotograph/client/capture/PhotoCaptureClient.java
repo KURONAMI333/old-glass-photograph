@@ -113,6 +113,41 @@ public final class PhotoCaptureClient {
     /** 遅れの追従。1 に近いほど即応（＝遅れが消える）。 */
     private static final float FRAME_DRIFT_FOLLOW = 0.45F;
 
+    /**
+     * 露光中に時計が刻む間隔（tick）。<b>1 秒固定で、露光の長さに一切依存しない。</b>
+     *
+     * <p>露光は真昼で 4 秒、暗い所では最大 12 秒かかる。その間は向きが固定され世界も止まって見えるので、
+     * 何も出さないと<b>フリーズしたと読まれる</b>（2026-08-22 kura 実機指摘）。
+     * 湿板の写真家はキャップを外してから懐中時計か口の中で秒を数えていたので、
+     * 拍を刻むこと自体が実物の工程にあたる。
+     *
+     * <p><b>拍の周期を固定にするのが要点。</b>残り時間に応じて速くしたり、拍の総数で
+     * 満ちる時刻を割り出せたりすると、それは数値・進捗の割合を出したのと同じになる
+     * （{@code MODJAM_DECISIONS_OGP.md} §15）。この拍から読めるのは「時間が進んでいる」だけ。
+     */
+    private static final int TICK_INTERVAL = 20;
+
+    /** 時計の音。手元の小さな音なので通さない。 */
+    private static final float TICK_VOLUME = 0.28F;
+
+    /**
+     * 露光中だけ枠が呼吸する量（GUI px）。
+     *
+     * <p>音を切っている player にも「止まっていない」を届ける。三脚に載せて暗幕を被った
+     * カメラが完全に静止することは無いので、ごく浅い揺れを置く。
+     * <b>{@link #FRAME_DRIFT_MAX} の予算の中で動かす</b>（枠の不透明部が開口へ食い込まない
+     * 不変条件は {@code generate_viewfinder.py} の {@code check()} がこの値で検算している）。
+     * 露光中は回転が止まっていて遅れの項が 0 なので、予算はまるごとここに使える。
+     *
+     * <p>貼る位置は整数の GUI px へ丸められる（{@code graphics.blit} が int）。
+     * 振れが小さいと通る位置が 3〜4 箇所しか無く、滑らかに漂うのではなく段で飛んで見える。
+     * <b>ここは「揺れの大きさ」より「段の細かさ」を決める値</b>として扱う。
+     */
+    private static final float BREATH_AMPLITUDE = 3.0F;
+
+    /** 呼吸の周期（tick）。時計の拍と同じにすると機械仕掛けに見えるので、割り切れない値にする。 */
+    private static final float BREATH_PERIOD = 47.0F;
+
     /** シャッターが開いた瞬間、開口を塞いだままにする tick（キャップが横切る）。 */
     private static final int OPEN_FLASH_TICKS = 2;
 
@@ -381,12 +416,25 @@ public final class PhotoCaptureClient {
         event.setRoll(0.0F);
     }
 
-    /** 枠の遅れを 1 フレーム進める。回転が止まれば 0 へ戻る。 */
+    /**
+     * 枠の遅れを 1 フレーム進める。回転が止まれば 0 へ戻る。
+     *
+     * <p>露光中は回転が止まっているので、代わりに {@link #BREATH_AMPLITUDE} の呼吸を目標に置く。
+     * <b>合計は {@link #FRAME_DRIFT_MAX} を超えない</b>（超えると枠が開口へ食い込む）。
+     */
     private static void advanceFrameDrift(float dYaw, float dPitch) {
         double scale = Math.max(1.0, Minecraft.getInstance().getWindow().getGuiScale());
-        float targetX = Mth.clamp((float) (-dYaw * FRAME_DRIFT_GAIN / scale),
+        float breathX = 0.0F;
+        float breathY = 0.0F;
+        if (phase == Phase.EXPOSING) {
+            float t = exposeElapsed * Mth.TWO_PI / BREATH_PERIOD;
+            breathX = Mth.sin(t) * BREATH_AMPLITUDE;
+            // 上下は半周ずらして半分の振れにする。同位相だと斜めの往復になって機械に見える。
+            breathY = Mth.cos(t * 0.5F) * (BREATH_AMPLITUDE * 0.5F);
+        }
+        float targetX = Mth.clamp((float) (-dYaw * FRAME_DRIFT_GAIN / scale) + breathX,
                 -FRAME_DRIFT_MAX, FRAME_DRIFT_MAX);
-        float targetY = Mth.clamp((float) (-dPitch * FRAME_DRIFT_GAIN / scale),
+        float targetY = Mth.clamp((float) (-dPitch * FRAME_DRIFT_GAIN / scale) + breathY,
                 -FRAME_DRIFT_MAX, FRAME_DRIFT_MAX);
         frameDriftX += (targetX - frameDriftX) * FRAME_DRIFT_FOLLOW;
         frameDriftY += (targetY - frameDriftY) * FRAME_DRIFT_FOLLOW;
@@ -569,6 +617,12 @@ public final class PhotoCaptureClient {
             // シャッターが開いている。窓が閉じるか、もう一度クリックするまで。
             case EXPOSING -> {
                 exposeElapsed++;
+                // 時計が秒を刻む。周期は固定なので、拍からは「進んでいる」以上のことは読めない。
+                if (exposeElapsed % TICK_INTERVAL == 0) {
+                    play(SoundEvents.STONE_BUTTON_CLICK_ON, TICK_VOLUME,
+                            // 表拍と裏拍でわずかに高さを変える。単調な連打でなく時計に聞こえる。
+                            exposeElapsed / TICK_INTERVAL % 2 == 0 ? 1.90F : 1.72F);
+                }
                 boolean filled = exposeElapsed >= maxExposeTicks;
                 if (clicked || filled) {
                     if (framesDispatched < PhotoCaptureController.MIN_EXPOSURE_FRAMES) {
