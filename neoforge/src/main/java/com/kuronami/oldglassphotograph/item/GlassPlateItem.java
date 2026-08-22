@@ -9,6 +9,9 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -58,6 +61,20 @@ public class GlassPlateItem extends Item {
 
     /** 定着。 */
     public static final int FIX_TICKS = 120;
+
+    /**
+     * 定着中に液の音を鳴らす間隔（tick）。{@code ItemUseAnimation.BRUSH} の 1 振りが 9 tick なので、
+     * vanilla の {@code BrushItem} と同じ 10 tick 周期・位相 5（振りの途中）に合わせる。
+     */
+    private static final int SHAKE_SOUND_INTERVAL = 10;
+
+    private static final int SHAKE_SOUND_PHASE = 5;
+
+    /** 定着の液音。手元で板を揺すっているだけなので、遠くまで届かせない。 */
+    private static final float SHAKE_SOUND_VOLUME = 0.35F;
+
+    /** アイテム欄のバーの色。Fixer のテクスチャの液部 (146,166,163) をそのまま使う。 */
+    private static final int FIX_BAR_COLOR = 0x92A6A3;
 
     public GlassPlateItem(Properties properties) {
         super(properties);
@@ -161,6 +178,31 @@ public class GlassPlateItem extends Item {
         return step == null || step == Step.DRIED || step.inDarkroomBox() ? 0 : step.durationTicks();
     }
 
+    /**
+     * 定着のあいだ、板を液の中で揺すっている音を繰り返す。
+     *
+     * <p>{@code entity.generic.swim} は vanilla が水を掻く時に鳴らしている短い音で、
+     * <b>ここで実際に起きていること（液の中で板を前後に振る）と同じ動き</b>から出る音になる。
+     * 音は実際に鳴らして選べないので、選んだ理由は「動きが同じ」の 1 点。
+     *
+     * <p>vanilla の {@code BrushItem} と同じく、鳴らす側は「使っている本人を除いた放送」にする。
+     * client でも同じ tick に同じ判定が通るので、本人は自分の client が鳴らす 1 回だけを聞く。
+     * ピッチは経過 tick から出す（乱数だと本人と他人で音が食い違う）。
+     */
+    @Override
+    public void onUseTick(Level level, LivingEntity user, ItemStack stack, int remaining) {
+        if (remaining < 0 || nextStep(stack, level.getGameTime()) != Step.FIX) {
+            return;
+        }
+        int elapsed = getUseDuration(stack, user) - remaining + 1;
+        if (elapsed % SHAKE_SOUND_INTERVAL != SHAKE_SOUND_PHASE) {
+            return;
+        }
+        float pitch = 0.85F + (elapsed / SHAKE_SOUND_INTERVAL % 3) * 0.08F;
+        level.playSound(user, user.getX(), user.getY(), user.getZ(),
+                SoundEvents.GENERIC_SWIM, SoundSource.PLAYERS, SHAKE_SOUND_VOLUME, pitch);
+    }
+
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
         if (level.isClientSide() || !(entity instanceof ServerPlayer player)) {
@@ -175,6 +217,9 @@ public class GlassPlateItem extends Item {
             return stack;
         }
         if (PhotoDeveloper.develop(player, stack)) {
+            // 揺する音が無音で切れると途中で止めたのか終わったのか分からない。終わりに 1 つだけ置く。
+            level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BOTTLE_EMPTY, SoundSource.PLAYERS, 0.6F, 1.15F);
             say(player, Component.translatable("message.old_glass_photograph.plate.fixed"));
         }
         return stack;
@@ -193,6 +238,36 @@ public class GlassPlateItem extends Item {
             default -> {
             }
         }
+    }
+
+    // ------------------------------------------------------- 定着の進み具合（アイテム欄のバー）
+
+    /**
+     * 定着のあいだだけ、道具の耐久バーと同じ場所に進み具合を出す。
+     *
+     * <p>「どれくらい振ればいいのか分からない」への答えなので、<b>耐久バーの逆</b>で
+     * 空から満ちる。満ちた瞬間に写真になるので、満ちる = 終わり がそのまま読める。
+     *
+     * <p>出すのは定着だけ。塗布と現像は Darkroom Table の中で回っていて手に持っていないし、
+     * 湿板の残り 60 秒は既にアイテム名に秒で出ている（同じことを 2 箇所に出さない）。
+     */
+    @Override
+    public boolean isBarVisible(ItemStack stack) {
+        return PlateUseProgress.of(stack) >= 0.0F;
+    }
+
+    @Override
+    public int getBarWidth(ItemStack stack) {
+        return Mth.clamp(Math.round(PlateUseProgress.of(stack) * 13.0F), 0, 13);
+    }
+
+    /**
+     * 一色で固定する。vanilla の耐久バーは緑→赤へ振れるが、あれは「減っている」の合図なので、
+     * 溜まる側に使うと壊れかけに見える。Fixer の液の色をそのまま置く。
+     */
+    @Override
+    public int getBarColor(ItemStack stack) {
+        return FIX_BAR_COLOR;
     }
 
     // ------------------------------------------------------------------ 乾燥
