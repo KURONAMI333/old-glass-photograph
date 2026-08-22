@@ -6,6 +6,7 @@ import com.kuronami.oldglassphotograph.capture.PhotoDeveloper;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -31,7 +32,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Glass Plate。1 枚が 1 スタック（{@code stacksTo(1)}）で、工程状態と潜像を data component に持つ。
+ * Glass Plate。工程状態と潜像を data component に持つ。
+ *
+ * <p><b>素の板は {@link #BLANK_MAX_STACK} 枚まで重なり、工程に入った板は 1 枚ずつになる。</b>
+ * 26.2 の {@code MAX_STACK_SIZE} は component なので、上限はアイテムではなく
+ * <b>スタックごと</b>に決まる（{@code ItemStack#getMaxStackSize} → {@code IItemExtension} が
+ * この component を読む）。撮るたびに 1 枚使うので、素の板が重ならないと撮りに出かけられない。
  *
  * <p>カスタム GUI は作らない。<b>暗所を要する塗布と現像は {@link DarkroomTableBlock} の中で回り</b>、
  * 箱を開けて板を入れ、蓋を閉じると工程が始まる（{@code MODJAM_DECISIONS_OGP.md} §30・B-2）。
@@ -49,6 +55,15 @@ import java.util.function.Consumer;
  * <p>薬品が無い・段が違う場合は<b>何も消費せず</b>理由だけを出す。
  */
 public class GlassPlateItem extends Item {
+
+    /**
+     * 素のガラス板が重なる枚数。
+     *
+     * <p>vanilla が壊れ物・かさばる物に与えている段（卵・雪玉・エンダーパール・看板）に合わせる。
+     * 薄いガラスの板を 64 枚束ねて持ち歩く絵にはならないが、16 枚あれば撮影に出て
+     * 帰ってくるまで足りる（1 枚 = 写真 1 枚）。
+     */
+    public static final int BLANK_MAX_STACK = 16;
 
     /** 銀浴から乾くまで。kura 受理済み = 60 秒。 */
     public static final int WET_TICKS = 1200;
@@ -111,7 +126,23 @@ public class GlassPlateItem extends Item {
         stack.remove(OgpDataComponents.PLATE_PROCESS.get());
         stack.remove(OgpDataComponents.LATENT_IMAGE.get());
         stack.remove(OgpDataComponents.PLATE_FOG.get());
+        // 素の板へ戻る以上、重なる枚数も戻す。ここで {@code remove} を呼ぶと
+        // 「既定値を打ち消した」状態になり、{@code getOrDefault(MAX_STACK_SIZE, 1)} が 1 を返す。
+        // 既定値と同じ値を {@code set} すると patch から消えるので、素の板と本当に同じ物になる
+        // （{@code PatchedDataComponentMap#set}）。
+        stack.set(DataComponents.MAX_STACK_SIZE, BLANK_MAX_STACK);
         return true;
+    }
+
+    /**
+     * 工程に入った板を 1 枚ずつにする。
+     *
+     * <p>工程に入った板は固有のデータ（残り時間・潜像・かぶり）を持つので重ねられない。
+     * 素の板 → 工程の板は {@link #applyDarkroomResult} の PREPARE 1 箇所しか無く、
+     * そこへ来る板は Darkroom Table が {@code split(1)} で 1 枚に割ってから受け取っている。
+     */
+    private static void markSingle(ItemStack stack) {
+        stack.set(DataComponents.MAX_STACK_SIZE, 1);
     }
 
     // ------------------------------------------------------------------ 操作
@@ -230,6 +261,7 @@ public class GlassPlateItem extends Item {
      * 呼ぶのは {@code DarkroomTableBlockEntity} だけで、薬品の消費は投入時に済んでいる。
      */
     public static void applyDarkroomResult(ItemStack plate, Step step, long gameTime) {
+        markSingle(plate);
         switch (step) {
             case PREPARE -> plate.set(OgpDataComponents.PLATE_PROCESS.get(), new PlateProcess(
                     PlateProcess.Stage.SENSITIZED, gameTime + WET_TICKS, WET_TICKS / 20));
@@ -376,11 +408,16 @@ public class GlassPlateItem extends Item {
         };
     }
 
+    /**
+     * 持ち物のどこかに薬品があるか。<b>定着（{@link Step#FIX}）専用。</b>
+     * Darkroom Table は {@link #holdsChemical} を使う（§32-1）。
+     */
     public static boolean hasChemical(Player player, Step step) {
         Item chemical = step.chemical();
         return chemical != null && player.getInventory().contains(s -> s.is(chemical));
     }
 
+    /** 持ち物から薬品を 1 個減らす。<b>定着専用。</b>箱は {@link #consumeHeldChemical}。 */
     public static boolean consumeChemical(Player player, Step step) {
         Item chemical = step.chemical();
         if (chemical == null) {
