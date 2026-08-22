@@ -103,13 +103,15 @@ public final class OgpRegistry {
             properties -> new BlockItem(DARKROOM_TABLE.get(), properties.useBlockDescriptionPrefix()));
 
     /**
-     * 板は 1 枚 1 スタック。工程状態と潜像を data component で持つので、
-     * 束ねると 16 枚が 1 つの潜像と 1 つの期限を共有してしまう。
+     * <b>素の板は重なり、工程に入った板は 1 枚ずつになる。</b>
+     * ここで決まるのは素の板の上限だけで、工程に入った板は
+     * {@code GlassPlateItem} がスタックごとに {@code MAX_STACK_SIZE} を 1 へ落とす
+     * （束ねると潜像と期限を共有してしまうため）。
      */
     public static final DeferredItem<GlassPlateItem> GLASS_PLATE = ITEMS.registerItem(
             "glass_plate",
             GlassPlateItem::new,
-            () -> new Item.Properties().stacksTo(1));
+            () -> new Item.Properties().stacksTo(GlassPlateItem.BLANK_MAX_STACK));
 
     /** Finished wet-plate photograph; MapItem inheritance preserves vanilla map-data persistence and sync. */
     public static final DeferredItem<PhotographItem> PHOTOGRAPH = ITEMS.registerItem(
