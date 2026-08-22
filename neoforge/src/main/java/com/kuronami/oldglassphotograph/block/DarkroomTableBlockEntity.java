@@ -4,6 +4,11 @@ import com.kuronami.oldglassphotograph.OgpRegistry;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -24,6 +29,22 @@ import org.jspecify.annotations.Nullable;
  * かぶりは現像の痕跡を濃くする（{@code capture.PhotoDeveloper}）。
  */
 public class DarkroomTableBlockEntity extends BlockEntity {
+
+    /**
+     * 蓋の隙間から薬品の匂いが漏れる間隔（tick）。
+     *
+     * <p>閉じた箱は中で何が起きているか一切見えず、終わりも分からない
+     * （2026-08-22 kura「これも完了がわかるきっかけがない　不親切かも」）。
+     * <b>走っている間だけ細く煙が出て、終わると止まる。</b>数値も割合も出さずに
+     * 「動いている / 終わった」だけが外から読める。
+     *
+     * <p>コロジオンはエーテルとアルコールの溶液で、暗室の中は実際に匂いが強かった。
+     * 湿板の写真家が携帯暗室で嫌われた理由そのものなので、絵としても史実の側にある。
+     */
+    private static final int FUME_INTERVAL = 10;
+
+    /** 煙を出す高さ（ブロックの上面 13/16 が蓋）。 */
+    private static final double FUME_Y = 12.0 / 16.0;
 
     private ItemStack plate = ItemStack.EMPTY;
 
@@ -110,6 +131,9 @@ public class DarkroomTableBlockEntity extends BlockEntity {
             table.fogTicks++;
         }
         if (--table.workTicks > 0) {
+            if (table.workTicks % FUME_INTERVAL == 0) {
+                fume(level, pos, state);
+            }
             // 毎 tick の setChanged() は要らない。startProcess で既にチャンクは dirty で、
             // saveAdditional はその時点のフィールドをそのまま書く。
             return;
@@ -125,6 +149,35 @@ public class DarkroomTableBlockEntity extends BlockEntity {
         GlassPlateItem.applyDarkroomResult(table.plate, finished, level.getGameTime());
         table.setChanged();
         DarkroomTableBlock.syncContent(level, pos, table.plate);
+        done(level, pos);
+    }
+
+    /**
+     * 工程が終わった合図。<b>箱は開かない</b>ので、音だけが外へ出る
+     * （{@code MODJAM_DECISIONS_OGP.md} §30 決定1「像が出た板は player が自分で開けたときに初めて見える」）。
+     *
+     * <p>{@code block.brewing_stand.brew} は vanilla が「液を使う工程が仕上がった」に当てている音で、
+     * ここで実際に起きていること（薬液の中で像が上がりきる）と同じ出来事から出る音になる。
+     * 蓋の開閉（{@code wooden_trapdoor}）とも定着の終わり（{@code bottle.empty}）とも重ならない。
+     *
+     * <p>player を渡さずに放送する。箱の前に居ない player にも届いてよい
+     * （閉じた箱の前で待つのでなく、他のことをしていて呼ばれるほうが工程として自然）。
+     */
+    private static void done(Level level, BlockPos pos) {
+        level.playSound(null, pos, SoundEvents.BREWING_STAND_BREW, SoundSource.BLOCKS, 0.8F, 1.0F);
+    }
+
+    /** 蓋の隙間から漏れる薬品の匂い。走っている間だけ。 */
+    private static void fume(Level level, BlockPos pos, BlockState state) {
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+        // 正面（蓋の合わせ目のある側）の縁から出す。真上から出すと蓋を開けているように見える。
+        Direction front = state.getValue(DarkroomTableBlock.FACING);
+        double x = pos.getX() + 0.5 + front.getStepX() * 0.45;
+        double z = pos.getZ() + 0.5 + front.getStepZ() * 0.45;
+        server.sendParticles(ParticleTypes.WHITE_SMOKE, x, pos.getY() + FUME_Y, z,
+                1, 0.12, 0.0, 0.12, 0.0);
     }
 
     /**
