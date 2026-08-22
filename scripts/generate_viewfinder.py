@@ -21,9 +21,16 @@
 
 このテクスチャは「開口 + 四辺の張り出し」に貼られる（`ViewfinderGeometry.framePad`）。
 したがって開口はテクスチャの内側 `AP = 0.5 / (0.5 + FRAME_PAD_FRAC)` までで、
-枠はその外側に載る。**枠の不透明部が開口へ食い込まないこと**が唯一の不変条件で、
-枠は回転に一拍遅れて動く（`FRAME_DRIFT_MAX` = 5 GUI px）ので、
-その分の余裕を残す。main() が実寸で検算して印字する。
+枠はその外側に載る。不変条件は 2 つある:
+
+1. **枠の不透明部が開口へ食い込まないこと。** 枠は回転に一拍遅れて動く
+   （`FRAME_DRIFT_MAX` = 5 GUI px）ので、その分の余裕を残す。
+2. **すりガラスの面が開口の内側を余さず覆うこと。** 面を `AP` ちょうどで切ると、
+   遅れて動いた分だけ開口の縁に素の描画が出る（枠の際に細い筋として見える）。
+   面は開口の外へはみ出させ、不透明部の内縁まで塗る。はみ出した分は暗幕か枠の下に隠れる。
+   実物でも硝子板は決りの下まで続いているので、絵としても正しい向きの逸脱ではない。
+
+main() が実寸で検算して印字する。
 
 出力: neoforge/src/main/resources/assets/old_glass_photograph/textures/gui/viewfinder.png
 """
@@ -121,7 +128,9 @@ def noise_field(rng: random.Random, cell: int) -> list[list[float]]:
 def build() -> Image.Image:
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     px = img.load()
-    c = (SIZE - 1) / 2.0
+    # 半幅はテクセルの端で測る（SIZE/2）。テクセルの中心で測る (SIZE-1)/2 にすると
+    # 半テクセル分だけ内側にずれ、貼った先で開口の縁に 0.5 px の素の描画が残る。
+    c = SIZE / 2.0
     rng = random.Random(20260822)
     mottle = noise_field(rng, MOTTLE_CELL)
     grain = noise_field(rng, GRAIN_CELL)
@@ -130,9 +139,9 @@ def build() -> Image.Image:
     rebate_in = wood_in - REBATE_W
 
     for y in range(SIZE):
-        ny = abs(y - c) / c
+        ny = abs(y + 0.5 - c) / c
         for x in range(SIZE):
-            nx = abs(x - c) / c
+            nx = abs(x + 0.5 - c) / c
             m = max(nx, ny)  # 正方形の等高線（枠はこれで切る）
 
             if m >= rebate_in:
@@ -154,12 +163,12 @@ def build() -> Image.Image:
                     px[x, y] = (*REBATE, 255)
                 continue
 
-            # --- 開口の中。座標を開口の半幅で測り直す ---
+            # --- 開口の中と、その外の「のりしろ」。座標を開口の半幅で測り直す ---
+            # ここは枠の内側（m < rebate_in）が全部通る。ax/ay が 1 を超える帯は
+            # 開口の外だが、そこも塗らないと枠が遅れて動いた時に素の描画が出る。
+            # はみ出した分は暗幕の上に乗るだけで、四隅の落ちが飽和しているので暗いまま。
             ax = nx / AP
             ay = ny / AP
-            if max(ax, ay) > 1.0:
-                # 開口の外側で、まだ枠にも届かない帯。暗幕が塗っているので何も描かない。
-                continue
 
             # すりガラスの面。研磨むらと粒状で alpha を振る。
             n_lo = mottle[y // MOTTLE_CELL][x // MOTTLE_CELL]
@@ -191,11 +200,15 @@ def check(aperture_side: float, label: str, drift_max: float = 5.0) -> None:
     opaque_in = (1.0 - BAND - REBATE_W) * half  # 中心から不透明部の内縁まで
     wood_in = (1.0 - BAND) * half
     clearance = opaque_in - aperture_side / 2.0
+    # 面は不透明部の内縁まで塗ってあるので、開口の外へのはみ出しは clearance と同じ。
+    overlap = clearance
     print(
         f"  [{label}] 開口={aperture_side:.0f}  張り出し={pad:.1f}"
         f"  木枠の見え幅={wood_in - opaque_in + (half - wood_in):.1f}"
         f"  不透明部の内縁の余裕={clearance:.1f} (>= drift {drift_max}: "
         f"{'OK' if clearance >= drift_max else 'NG'})"
+        f"  面のはみ出し={overlap:.1f} (>= drift {drift_max}: "
+        f"{'OK' if overlap >= drift_max else 'NG'})"
     )
 
 
