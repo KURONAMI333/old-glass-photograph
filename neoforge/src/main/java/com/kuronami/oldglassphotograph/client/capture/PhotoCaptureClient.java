@@ -125,7 +125,12 @@ public final class PhotoCaptureClient {
     /** レンズキャップ。開口を塞ぐ。 */
     private static final int CAP_COLOR = 0xFF070605;
 
-    /** すりガラスの縁と四隅の落ち。開口の上にそのまま伸ばして貼る。 */
+    /**
+     * すりガラスの面・木の枠・四隅の落ち。開口の上にそのまま伸ばして貼る。
+     *
+     * <p>面の艶消し（暗く・低彩度・粒状）もこの 1 枚に焼いてある。別レイヤで
+     * {@code fill} すると draw call が 1 つ増えるだけで、得るものが無い。
+     */
     private static final Identifier VIEWFINDER_TEXTURE = Identifier.fromNamespaceAndPath(
             OldGlassPhotograph.MODID, "textures/gui/viewfinder.png");
 
@@ -284,10 +289,11 @@ public final class PhotoCaptureClient {
         graphics.fill(0, open.y(), open.x(), open.bottom(), CLOTH_COLOR);
         graphics.fill(open.right(), open.y(), w, open.bottom(), CLOTH_COLOR);
 
-        // 2. すりガラスの枠と四隅の落ち。マウスの回転に一拍遅れて追う。
+        // 2. すりガラスの面・枠・四隅の落ち。マウスの回転に一拍遅れて追う。
+        //    張り出しは開口の一辺に比例させる（固定 px だと大きい画面で枠が糸のように細くなる）。
         int dx = Math.round(frameDriftX);
         int dy = Math.round(frameDriftY);
-        int pad = (int) FRAME_DRIFT_MAX;
+        int pad = ViewfinderGeometry.framePad(open.side(), (int) Math.ceil(FRAME_DRIFT_MAX));
         graphics.blit(VIEWFINDER_TEXTURE,
                 open.x() - pad + dx, open.y() - pad + dy,
                 open.right() + pad + dx, open.bottom() + pad + dy,
