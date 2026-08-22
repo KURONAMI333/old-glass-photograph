@@ -86,7 +86,7 @@ public final class PhotoDeveloper {
             // ここに来るのは保存データが壊れた時だけ。
             LOG.error("[ogp] latent has {} bytes (expected {}) - pixels were lost",
                     latent.pixels().length, LatentImage.SIZE);
-            player.sendSystemMessage(Component.literal("The plate is blank."), true);
+            player.sendSystemMessage(Component.translatable("message.old_glass_photograph.plate.blank"), true);
             return false;
         }
         int exposure = Math.clamp(latent.exposureTicks() <= 0

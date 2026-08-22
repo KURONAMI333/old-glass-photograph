@@ -121,27 +121,28 @@ public class GlassPlateItem extends Item {
         if (step == Step.DRIED) {
             if (!level.isClientSide()) {
                 resolveDryOut(stack, level.getGameTime());
-                say(player, "The collodion dried out. The plate is clean again.");
+                say(player, Component.translatable("message.old_glass_photograph.plate.dried"));
             }
             return InteractionResult.SUCCESS;
         }
         if (step == null) {
             if (!level.isClientSide()) {
-                say(player, "Load this plate into a Wet Plate Camera and expose it.");
+                say(player, Component.translatable("message.old_glass_photograph.plate.load_into_camera"));
             }
             return InteractionResult.FAIL;
         }
         if (step.inDarkroomBox()) {
             // 塗布と現像は暗箱の中でしか進まない。手の中では何も起きない。
             if (!level.isClientSide()) {
-                say(player, "Open a Darkroom Table, put the plate in, then close the lid. You need "
-                        + step.chemicalName() + ".");
+                say(player, Component.translatable("message.old_glass_photograph.plate.use_darkroom",
+                        step.chemicalName()));
             }
             return InteractionResult.FAIL;
         }
         if (!hasChemical(player, step)) {
             if (!level.isClientSide()) {
-                say(player, "You need " + step.chemicalName() + ".");
+                say(player, Component.translatable("message.old_glass_photograph.plate.need_chemical",
+                        step.chemicalName()));
             }
             return InteractionResult.FAIL;
         }
@@ -174,7 +175,7 @@ public class GlassPlateItem extends Item {
             return stack;
         }
         if (PhotoDeveloper.develop(player, stack)) {
-            say(player, "Fixed. The photograph is finished.");
+            say(player, Component.translatable("message.old_glass_photograph.plate.fixed"));
         }
         return stack;
     }
@@ -212,7 +213,7 @@ public class GlassPlateItem extends Item {
         if (p.isDriedAt(gameTime)) {
             resolveDryOut(stack, gameTime);
             if (owner instanceof ServerPlayer player) {
-                say(player, "The collodion dried out. The plate is clean again.");
+                say(player, Component.translatable("message.old_glass_photograph.plate.dried"));
             }
             return;
         }
@@ -228,12 +229,14 @@ public class GlassPlateItem extends Item {
     public Component getName(ItemStack stack) {
         PlateProcess p = process(stack);
         if (p == null) {
-            return Component.literal("Glass Plate");
+            return Component.translatable("item.old_glass_photograph.glass_plate");
         }
         return switch (p.stage()) {
-            case SENSITIZED -> Component.literal("Wet Plate (" + p.secondsLeft() + "s)");
-            case EXPOSED -> Component.literal("Exposed Plate (" + p.secondsLeft() + "s)");
-            case DEVELOPED -> Component.literal("Developed Plate");
+            case SENSITIZED -> Component.translatable(
+                    "item.old_glass_photograph.glass_plate.wet", p.secondsLeft());
+            case EXPOSED -> Component.translatable(
+                    "item.old_glass_photograph.glass_plate.exposed", p.secondsLeft());
+            case DEVELOPED -> Component.translatable("item.old_glass_photograph.glass_plate.developed");
         };
     }
 
@@ -243,20 +246,20 @@ public class GlassPlateItem extends Item {
         super.appendHoverText(stack, context, display, adder, flag);
         PlateProcess p = process(stack);
         if (p == null) {
-            adder.accept(line("Coat it in a Darkroom Table. Needs a Collodion Kit."));
+            adder.accept(line("tooltip.old_glass_photograph.plate.blank"));
             fogged(stack, adder);
             return;
         }
         switch (p.stage()) {
             case SENSITIZED -> {
-                adder.accept(line("Wet. Load it into a Wet Plate Camera, then shoot from behind it."));
+                adder.accept(line("tooltip.old_glass_photograph.plate.wet"));
                 adder.accept(wetness(p));
             }
             case EXPOSED -> {
-                adder.accept(line("Latent image. Develop it in a Darkroom Table. Needs Developer."));
+                adder.accept(line("tooltip.old_glass_photograph.plate.exposed"));
                 adder.accept(wetness(p));
             }
-            case DEVELOPED -> adder.accept(line("Hold right-click with Fixer to finish the photograph."));
+            case DEVELOPED -> adder.accept(line("tooltip.old_glass_photograph.plate.developed"));
         }
         fogged(stack, adder);
     }
@@ -264,7 +267,8 @@ public class GlassPlateItem extends Item {
     /** かぶりが乗っている板だけ 1 行足す。0 の板には何も出さない。 */
     private static void fogged(ItemStack stack, Consumer<Component> adder) {
         if (stack.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0) > 0) {
-            adder.accept(Component.literal("Fogged by light").withStyle(ChatFormatting.GOLD));
+            adder.accept(Component.translatable("tooltip.old_glass_photograph.plate.fogged")
+                    .withStyle(ChatFormatting.GOLD));
         }
     }
 
@@ -272,11 +276,11 @@ public class GlassPlateItem extends Item {
         int seconds = p.secondsLeft();
         ChatFormatting color = seconds <= 10 ? ChatFormatting.RED
                 : seconds <= 25 ? ChatFormatting.GOLD : ChatFormatting.AQUA;
-        return Component.literal("Wet for " + seconds + "s").withStyle(color);
+        return Component.translatable("tooltip.old_glass_photograph.plate.wet_for", seconds).withStyle(color);
     }
 
-    private static Component line(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.GRAY);
+    private static Component line(String key) {
+        return Component.translatable(key).withStyle(ChatFormatting.GRAY);
     }
 
     // ------------------------------------------------------------------ 工程
@@ -318,9 +322,9 @@ public class GlassPlateItem extends Item {
         return false;
     }
 
-    private static void say(Player player, String text) {
+    private static void say(Player player, Component text) {
         if (player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.sendSystemMessage(Component.literal(text), true);
+            serverPlayer.sendSystemMessage(text, true);
         }
     }
 
@@ -329,32 +333,33 @@ public class GlassPlateItem extends Item {
      * （洗浄・コロジオン・銀浴と現像は暗所。定着は暗室を出てから行える）。
      */
     public enum Step {
-        PREPARE(GlassPlateItem.PREPARE_TICKS, "a Collodion Kit", true,
-                "The lid is shut. Coating and sensitizing the plate."),
-        DEVELOP(GlassPlateItem.DEVELOP_TICKS, "Developer", true,
-                "The lid is shut. Developing the plate."),
-        FIX(GlassPlateItem.FIX_TICKS, "Fixer", false, ""),
+        PREPARE(GlassPlateItem.PREPARE_TICKS, "chemical.old_glass_photograph.collodion_kit", true,
+                "message.old_glass_photograph.darkroom.start_prepare"),
+        DEVELOP(GlassPlateItem.DEVELOP_TICKS, "chemical.old_glass_photograph.developer", true,
+                "message.old_glass_photograph.darkroom.start_develop"),
+        FIX(GlassPlateItem.FIX_TICKS, "chemical.old_glass_photograph.fixer", false, ""),
         /** 乾いた板。薬品は要らず、触れば素のガラス板へ戻る。 */
         DRIED(0, "", false, "");
 
         private final int durationTicks;
-        private final String chemicalName;
+        private final String chemicalKey;
         private final boolean inDarkroomBox;
-        private final String startMessage;
+        private final String startMessageKey;
 
-        Step(int durationTicks, String chemicalName, boolean inDarkroomBox, String startMessage) {
+        Step(int durationTicks, String chemicalKey, boolean inDarkroomBox, String startMessageKey) {
             this.durationTicks = durationTicks;
-            this.chemicalName = chemicalName;
+            this.chemicalKey = chemicalKey;
             this.inDarkroomBox = inDarkroomBox;
-            this.startMessage = startMessage;
+            this.startMessageKey = startMessageKey;
         }
 
         public int durationTicks() {
             return durationTicks;
         }
 
-        public String chemicalName() {
-            return chemicalName;
+        /** 文中でこの工程の薬品を指す名前。薬品を使わない段は空。 */
+        public Component chemicalName() {
+            return chemicalKey.isEmpty() ? Component.empty() : Component.translatable(chemicalKey);
         }
 
         /** Darkroom Table の中でしか進まない工程か。 */
@@ -362,9 +367,9 @@ public class GlassPlateItem extends Item {
             return inDarkroomBox;
         }
 
-        /** 箱へ入れた瞬間に出す一言。 */
-        public String startMessage() {
-            return startMessage;
+        /** 箱へ入れた瞬間に出す一言。箱の中で回らない工程は null。 */
+        public @Nullable Component startMessage() {
+            return startMessageKey.isEmpty() ? null : Component.translatable(startMessageKey);
         }
 
         public @Nullable Item chemical() {

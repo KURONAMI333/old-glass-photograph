@@ -48,11 +48,11 @@ public class WetPlateCameraBlockItem extends BlockItem {
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
                                 Consumer<Component> adder, TooltipFlag flag) {
         super.appendHoverText(stack, context, display, adder, flag);
-        adder.accept(line("The lens points the way you are facing when you place it."));
-        adder.accept(line("Stand close behind it and right-click to look through it."));
+        adder.accept(line("tooltip.old_glass_photograph.camera.facing"));
+        adder.accept(line("tooltip.old_glass_photograph.camera.stand_behind"));
     }
 
-    private static Component line(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.GRAY);
+    private static Component line(String key) {
+        return Component.translatable(key).withStyle(ChatFormatting.GRAY);
     }
 }

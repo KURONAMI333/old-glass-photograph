@@ -189,7 +189,7 @@ public final class PhotoCaptureClient {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Component line = Component.literal(current.line());
+        Component line = current.line();
         // 位置と描き方は vanilla の actionbar（Hud.extractOverlayMessage）に合わせる。
         graphics.nextStratum();
         graphics.pose().pushMatrix();
