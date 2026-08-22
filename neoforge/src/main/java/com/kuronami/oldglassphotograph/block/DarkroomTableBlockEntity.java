@@ -91,7 +91,8 @@ public class DarkroomTableBlockEntity extends BlockEntity {
             table.fogTicks++;
         }
         if (--table.workTicks > 0) {
-            table.setChanged();
+            // 毎 tick の setChanged() は要らない。beginProcess で既にチャンクは dirty で、
+            // saveAdditional はその時点のフィールドをそのまま書く。
             return;
         }
         GlassPlateItem.Step finished = table.step;
