@@ -1,6 +1,7 @@
 package com.kuronami.oldglassphotograph;
 
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlock;
+import com.kuronami.oldglassphotograph.block.DarkroomTableBlockEntity;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlock;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlockEntity;
 import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
@@ -51,13 +52,16 @@ public final class OgpRegistry {
             properties -> new WetPlateCameraBlockItem(WET_PLATE_CAMERA.get(), properties));
 
     /**
-     * 暗室の台。<b>その上の光量が低いときだけ</b>板の準備と現像が進む
-     * （{@code MODJAM_DECISIONS_OGP.md} §10）。GUI は持たない。
+     * 携帯暗箱。<b>板を中へ入れて蓋を閉じると</b>準備と現像が進む
+     * （{@code MODJAM_DECISIONS_OGP.md} §30）。遮光は箱そのものが持つので周囲の明るさは効かない。
+     * GUI は持たない。
+     *
+     * <p>{@code noOcclusion} が要る: モデルは高さ 13 の脚立で、隣の面を塞がない。
      */
     public static final DeferredBlock<DarkroomTableBlock> DARKROOM_TABLE = BLOCKS.registerBlock(
             "darkroom_table",
             DarkroomTableBlock::new,
-            () -> BlockBehaviour.Properties.of().strength(2.0F).sound(SoundType.WOOD));
+            () -> BlockBehaviour.Properties.of().strength(2.0F).sound(SoundType.WOOD).noOcclusion());
 
     public static final DeferredItem<BlockItem> DARKROOM_TABLE_ITEM = ITEMS.registerItem(
             "darkroom_table",
@@ -90,6 +94,11 @@ public final class OgpRegistry {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WetPlateCameraBlockEntity>>
             CAMERA_BLOCK_ENTITY = BLOCK_ENTITIES.register("wet_plate_camera",
             () -> new BlockEntityType<>(WetPlateCameraBlockEntity::new, WET_PLATE_CAMERA.get()));
+
+    /** 箱の中の板と、走っている工程を持つ。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DarkroomTableBlockEntity>>
+            DARKROOM_TABLE_BLOCK_ENTITY = BLOCK_ENTITIES.register("darkroom_table",
+            () -> new BlockEntityType<>(DarkroomTableBlockEntity::new, DARKROOM_TABLE.get()));
 
     private OgpRegistry() {
     }

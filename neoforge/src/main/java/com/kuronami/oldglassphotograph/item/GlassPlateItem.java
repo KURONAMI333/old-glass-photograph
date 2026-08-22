@@ -3,11 +3,9 @@ package com.kuronami.oldglassphotograph.item;
 import com.kuronami.oldglassphotograph.OgpRegistry;
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlock;
 import com.kuronami.oldglassphotograph.capture.PhotoDeveloper;
-import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpDataComponents;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,15 +30,17 @@ import java.util.function.Consumer;
 /**
  * Glass Plate。1 枚が 1 スタック（{@code stacksTo(1)}）で、工程状態と潜像を data component に持つ。
  *
- * <p><b>操作は「板を手に持って右クリック長押し」の 1 つだけ</b>。何が起きるかは板の状態が決める。
- * カスタム GUI は作らず、工程の進行は板そのものへ畳んである。
- * <b>暗所を要する工程は Darkroom Table の上でしか進まない</b>（{@link DarkroomTableBlock}）。
+ * <p>カスタム GUI は作らない。<b>暗所を要する塗布と現像は {@link DarkroomTableBlock} の中で回り</b>、
+ * 板を持って台を右クリックすると板が箱へ入って蓋が閉じる（{@code MODJAM_DECISIONS_OGP.md} §30）。
+ * 暗いのは箱の中なので、周りの明るさは工程に一切効かない。
+ *
+ * <p>手に持ったまま長押しするのは<b>定着だけ</b>。史実でも定着は暗室を出てから行える。
  *
  * <ol>
- *   <li>素のガラス板 + Collodion Kit を<b>暗い Darkroom Table で</b> → 4 秒 → 濡れた感光板（60 秒で乾く）</li>
+ *   <li>素のガラス板 + Collodion Kit を<b>Darkroom Table へ</b> → 4 秒 → 濡れた感光板（60 秒で乾く）</li>
  *   <li>カメラへ装填して露光（{@code WetPlateCameraBlock}）</li>
- *   <li>露光済み + Developer を<b>暗い Darkroom Table で</b> → 4 秒 → 像が確定し期限が止まる</li>
- *   <li>現像済み + Fixer → 6 秒 → 写真（locked filled map）。定着は暗室の外でよい</li>
+ *   <li>露光済み + Developer を<b>Darkroom Table へ</b> → 4 秒 → 像が確定し期限が止まる</li>
+ *   <li>現像済み + Fixer を手に持って長押し → 6 秒 → 写真</li>
  * </ol>
  *
  * <p>薬品が無い・段が違う場合は<b>何も消費せず</b>理由だけを出す。
@@ -82,7 +82,7 @@ public class GlassPlateItem extends Item {
      *
      * <p>乾いた板を別アイテムにして「洗い直し」の操作を足すと工程が 1 段増える。短縮の趣旨に
      * 反するので、乾いた時点で素のガラス板へ戻す形にした（失うのは塗った薬品 1 個と、
-     * 露光済みなら 1 回の撮影機会だけ）。
+     * 露光済みなら 1 回の撮影機会だけ）。素のガラスへ戻る以上、溜まったかぶりも一緒に落ちる。
      *
      * @return 乾いていて戻した場合 true
      */
@@ -93,6 +93,7 @@ public class GlassPlateItem extends Item {
         }
         stack.remove(OgpDataComponents.PLATE_PROCESS.get());
         stack.remove(OgpDataComponents.LATENT_IMAGE.get());
+        stack.remove(OgpDataComponents.PLATE_FOG.get());
         return true;
     }
 
@@ -100,7 +101,7 @@ public class GlassPlateItem extends Item {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        return begin(level, player, hand, null);
+        return begin(level, player, hand);
     }
 
     @Override
@@ -109,17 +110,12 @@ public class GlassPlateItem extends Item {
         if (player == null) {
             return InteractionResult.PASS;
         }
-        // 地面や壁を見たまま右クリックしても同じ工程が進むようにする（空中限定にしない）。
-        // 暗室が要る工程だけ、押した先が Darkroom Table かどうかを見る。
-        return begin(context.getLevel(), player, context.getHand(), context.getClickedPos());
+        // Darkroom Table を押した場合はブロック側が先に受け取っている。ここへ来るのは
+        // 箱の仕事でない板（露光待ち・定着待ち・乾いた板）だけなので、空中と同じ扱いでよい。
+        return begin(context.getLevel(), player, context.getHand());
     }
 
-    /**
-     * @param clickedPos 右クリックした先のブロック。空中なら null。
-     *                   暗室が要る工程はここが Darkroom Table でなければ始まらない
-     */
-    private InteractionResult begin(Level level, Player player, InteractionHand hand,
-                                    @Nullable BlockPos clickedPos) {
+    private InteractionResult begin(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         Step step = nextStep(stack, level.getGameTime());
         if (step == Step.DRIED) {
@@ -135,14 +131,12 @@ public class GlassPlateItem extends Item {
             }
             return InteractionResult.FAIL;
         }
-        if (step.needsDarkroom) {
-            String refusal = darkroomRefusal(level, clickedPos, step);
-            if (refusal != null) {
-                if (!level.isClientSide()) {
-                    say(player, refusal);
-                }
-                return InteractionResult.FAIL;
+        if (step.inDarkroomBox()) {
+            // 塗布と現像は暗箱の中でしか進まない。手の中では何も起きない。
+            if (!level.isClientSide()) {
+                say(player, "Put the plate into a Darkroom Table with " + step.chemicalName() + ".");
             }
+            return InteractionResult.FAIL;
         }
         if (!hasChemical(player, step)) {
             if (!level.isClientSide()) {
@@ -154,24 +148,6 @@ public class GlassPlateItem extends Item {
         return InteractionResult.CONSUME;
     }
 
-    /**
-     * 暗室の条件を満たさない理由。満たしていれば null。
-     *
-     * <p><b>黙って何も起きない状態にしない</b>（{@code MODJAM_DECISIONS_OGP.md} §10）。
-     * 台に触っていないのか、台はあるが明るすぎるのかを言い分ける。
-     */
-    private static @Nullable String darkroomRefusal(Level level, @Nullable BlockPos clickedPos, Step step) {
-        if (clickedPos == null || !DarkroomTableBlock.isDarkroomTable(level, clickedPos)) {
-            return step.darkroomVerb + " the plate on a Darkroom Table.";
-        }
-        int light = DarkroomTableBlock.lightReaching(level, clickedPos);
-        if (light > DarkroomTableBlock.MAX_LIGHT) {
-            return "Too much light here (light " + light + "). The darkroom needs "
-                    + DarkroomTableBlock.MAX_LIGHT + " or less - block the light out.";
-        }
-        return null;
-    }
-
     @Override
     public ItemUseAnimation getUseAnimation(ItemStack stack) {
         return ItemUseAnimation.BRUSH;
@@ -180,7 +156,7 @@ public class GlassPlateItem extends Item {
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity user) {
         Step step = nextStep(stack, user.level().getGameTime());
-        return step == null || step == Step.DRIED ? 0 : step.durationTicks;
+        return step == null || step == Step.DRIED || step.inDarkroomBox() ? 0 : step.durationTicks();
     }
 
     @Override
@@ -188,42 +164,33 @@ public class GlassPlateItem extends Item {
         if (level.isClientSide() || !(entity instanceof ServerPlayer player)) {
             return stack;
         }
+        // 手の中で終わるのは定着だけ（塗布と現像は Darkroom Table の中で終わる）。
         Step step = nextStep(stack, level.getGameTime());
-        if (step == null || step == Step.DRIED) {
-            return stack;
-        }
-        // 押し始めてから歩き去った・明かりが置かれた場合に gate が素通りしないよう、
-        // 完了時にもう一度見る（ここは clicked pos を持たないので周囲を探す）。
-        if (step.needsDarkroom && DarkroomTableBlock.findUsable(level, player) == null) {
-            int nearby = DarkroomTableBlock.bestLightNearby(level, player);
-            say(player, nearby < 0
-                    ? "You stepped away from the Darkroom Table. Nothing happened."
-                    : "Light got in (light " + nearby + "). The plate is untouched.");
+        if (step != Step.FIX) {
             return stack;
         }
         if (!consumeChemical(player, step)) {
             return stack;
         }
+        if (PhotoDeveloper.develop(player, stack)) {
+            say(player, "Fixed. The photograph is finished.");
+        }
+        return stack;
+    }
+
+    /**
+     * Darkroom Table の中で終わった工程の結果を板へ書く。
+     * 呼ぶのは {@code DarkroomTableBlockEntity} だけで、薬品の消費は投入時に済んでいる。
+     */
+    public static void applyDarkroomResult(ItemStack plate, Step step, long gameTime) {
         switch (step) {
-            case PREPARE -> {
-                stack.set(OgpDataComponents.PLATE_PROCESS.get(), new PlateProcess(
-                        PlateProcess.Stage.SENSITIZED, level.getGameTime() + WET_TICKS, WET_TICKS / 20));
-                say(player, "Coated and sensitized. " + (WET_TICKS / 20) + "s before it dries.");
-            }
-            case DEVELOP -> {
-                stack.set(OgpDataComponents.PLATE_PROCESS.get(),
-                        new PlateProcess(PlateProcess.Stage.DEVELOPED, 0L, 0));
-                say(player, "Developed. The image is fixed in time - now fix it in the plate.");
-            }
-            case FIX -> {
-                if (PhotoDeveloper.develop(player, stack)) {
-                    say(player, "Fixed. The photograph is finished.");
-                }
-            }
+            case PREPARE -> plate.set(OgpDataComponents.PLATE_PROCESS.get(), new PlateProcess(
+                    PlateProcess.Stage.SENSITIZED, gameTime + WET_TICKS, WET_TICKS / 20));
+            case DEVELOP -> plate.set(OgpDataComponents.PLATE_PROCESS.get(),
+                    new PlateProcess(PlateProcess.Stage.DEVELOPED, 0L, 0));
             default -> {
             }
         }
-        return stack;
     }
 
     // ------------------------------------------------------------------ 乾燥
@@ -275,7 +242,8 @@ public class GlassPlateItem extends Item {
         super.appendHoverText(stack, context, display, adder, flag);
         PlateProcess p = process(stack);
         if (p == null) {
-            adder.accept(line("Hold right-click on a dark Darkroom Table with a Collodion Kit."));
+            adder.accept(line("Put it into a Darkroom Table with a Collodion Kit."));
+            fogged(stack, adder);
             return;
         }
         switch (p.stage()) {
@@ -284,10 +252,18 @@ public class GlassPlateItem extends Item {
                 adder.accept(wetness(p));
             }
             case EXPOSED -> {
-                adder.accept(line("Latent image. Hold right-click on a dark Darkroom Table with Developer."));
+                adder.accept(line("Latent image. Put it into a Darkroom Table with Developer."));
                 adder.accept(wetness(p));
             }
             case DEVELOPED -> adder.accept(line("Hold right-click with Fixer to finish the photograph."));
+        }
+        fogged(stack, adder);
+    }
+
+    /** かぶりが乗っている板だけ 1 行足す。0 の板には何も出さない。 */
+    private static void fogged(ItemStack stack, Consumer<Component> adder) {
+        if (stack.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0) > 0) {
+            adder.accept(Component.literal("Fogged by light").withStyle(ChatFormatting.GOLD));
         }
     }
 
@@ -305,7 +281,7 @@ public class GlassPlateItem extends Item {
     // ------------------------------------------------------------------ 工程
 
     /** いま板に対してできること。null = 薬品ではどうにもならない段（露光待ち）。 */
-    private static @Nullable Step nextStep(ItemStack stack, long gameTime) {
+    public static @Nullable Step nextStep(ItemStack stack, long gameTime) {
         PlateProcess p = process(stack);
         if (p == null) {
             return Step.PREPARE;
@@ -320,12 +296,12 @@ public class GlassPlateItem extends Item {
         };
     }
 
-    private static boolean hasChemical(Player player, Step step) {
+    public static boolean hasChemical(Player player, Step step) {
         Item chemical = step.chemical();
         return chemical != null && player.getInventory().contains(s -> s.is(chemical));
     }
 
-    private static boolean consumeChemical(Player player, Step step) {
+    public static boolean consumeChemical(Player player, Step step) {
         Item chemical = step.chemical();
         if (chemical == null) {
             return false;
@@ -348,39 +324,65 @@ public class GlassPlateItem extends Item {
     }
 
     /**
-     * 板に対してできること。{@code needsDarkroom} は史実の暗室工程に対応する
+     * 板に対してできること。{@code inDarkroomBox} は史実の暗室工程に対応する
      * （洗浄・コロジオン・銀浴と現像は暗所。定着は暗室を出てから行える）。
      */
-    private enum Step {
-        PREPARE(GlassPlateItem.PREPARE_TICKS, "a Collodion Kit", true, "Coat"),
-        DEVELOP(GlassPlateItem.DEVELOP_TICKS, "Developer", true, "Develop"),
+    public enum Step {
+        PREPARE(GlassPlateItem.PREPARE_TICKS, "a Collodion Kit", true,
+                "The lid is shut. Coating and sensitizing the plate."),
+        DEVELOP(GlassPlateItem.DEVELOP_TICKS, "Developer", true,
+                "The lid is shut. Developing the plate."),
         FIX(GlassPlateItem.FIX_TICKS, "Fixer", false, ""),
         /** 乾いた板。薬品は要らず、触れば素のガラス板へ戻る。 */
         DRIED(0, "", false, "");
 
         private final int durationTicks;
         private final String chemicalName;
-        private final boolean needsDarkroom;
-        private final String darkroomVerb;
+        private final boolean inDarkroomBox;
+        private final String startMessage;
 
-        Step(int durationTicks, String chemicalName, boolean needsDarkroom, String darkroomVerb) {
+        Step(int durationTicks, String chemicalName, boolean inDarkroomBox, String startMessage) {
             this.durationTicks = durationTicks;
             this.chemicalName = chemicalName;
-            this.needsDarkroom = needsDarkroom;
-            this.darkroomVerb = darkroomVerb;
+            this.inDarkroomBox = inDarkroomBox;
+            this.startMessage = startMessage;
         }
 
-        String chemicalName() {
+        public int durationTicks() {
+            return durationTicks;
+        }
+
+        public String chemicalName() {
             return chemicalName;
         }
 
-        @Nullable Item chemical() {
+        /** Darkroom Table の中でしか進まない工程か。 */
+        public boolean inDarkroomBox() {
+            return inDarkroomBox;
+        }
+
+        /** 箱へ入れた瞬間に出す一言。 */
+        public String startMessage() {
+            return startMessage;
+        }
+
+        public @Nullable Item chemical() {
             return switch (this) {
                 case PREPARE -> OgpRegistry.COLLODION_KIT.get();
                 case DEVELOP -> OgpRegistry.DEVELOPER.get();
                 case FIX -> OgpRegistry.FIXER.get();
                 case DRIED -> null;
             };
+        }
+
+        /** 保存した名前から戻す。知らない名前・空文字は null（工程なし）。 */
+        public static @Nullable Step byName(String name) {
+            for (Step step : values()) {
+                if (step.name().equals(name)) {
+                    return step;
+                }
+            }
+            return null;
         }
     }
 }
