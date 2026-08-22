@@ -47,7 +47,8 @@ import org.jspecify.annotations.Nullable;
  * <ol>
  *   <li>閉じた箱を素手で右クリック = <b>開く</b></li>
  *   <li>開いた箱に板を持って右クリック = <b>板が入る</b>（工程はまだ始まらない・薬品も減らない）</li>
- *   <li>開いた箱を素手で右クリック = <b>閉じる。ここで工程が始まる</b>（薬品を 1 個消費）</li>
+ *   <li><b>薬品を手に持って</b>右クリック = <b>閉じる。ここで工程が始まる</b>（手の薬品を 1 個消費。
+ *       {@code MODJAM_DECISIONS_OGP.md} §32-1。持ち物のどこかから勝手に引かない）</li>
  *   <li>終わったら開けて像を見る。もう一度で回収</li>
  * </ol>
  * 入れた板をやめたくなったら<b>スニーク + 素手</b>で取り戻せる（工程が走っていない間だけ）。
@@ -128,6 +129,8 @@ public class DarkroomTableBlock extends BaseEntityBlock {
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hit) {
         if (!stack.is(OgpRegistry.GLASS_PLATE.get())) {
+            // 板以外を持っている時は素手と同じ扱いへ落とす。<b>薬品を持って蓋を閉じる経路
+            // （§32-1）はここを通る</b>ので、薬品だけを別扱いにしてはいけない。
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         GlassPlateItem.Step step = GlassPlateItem.nextStep(stack, level.getGameTime());
@@ -152,7 +155,9 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         }
         table.insertPlate(stack.split(1));
         level.setBlock(pos, state.setValue(CONTENT, Content.PLATE), Block.UPDATE_ALL);
-        say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_in"));
+        // 次に何をすればいいかを、薬品の名前まで込みで言う（§32-1 で「手に持つ」が条件になった）。
+        say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_in",
+                step.chemicalName()));
         return InteractionResult.SUCCESS;
     }
 
@@ -162,7 +167,8 @@ public class DarkroomTableBlock extends BaseEntityBlock {
      * <ul>
      *   <li>閉じている → 開く</li>
      *   <li>開いていて取り出し待ちの板がある → その板を回収（蓋は開いたまま）</li>
-     *   <li>開いている → 閉じる。中に始めていない板があればここで工程が始まる</li>
+     *   <li>開いている → 閉じる。中に始めていない板があり、<b>その工程の薬品を手に持っていれば</b>
+     *       ここで工程が始まる（§32-1）</li>
      *   <li>スニーク + 開いている + 走っていない板 → 入れた板を取り戻す</li>
      * </ul>
      *
@@ -189,7 +195,12 @@ public class DarkroomTableBlock extends BaseEntityBlock {
             } else if (!table.isAwaitingPickup(gameTime)) {
                 // 入れたまま閉じずに開け直した板。取り出し待ちの板には何も言わない
                 // （像が見えているので、次のクリックで取れることは絵で分かる）。
-                say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_waiting"));
+                // 薬品の名前を差す。箱の仕事でない段（DRIED 等）は薬品を持たないので、
+                // null 判定だけでは空文字が %s へ入る。箱の仕事かどうかで判定する。
+                GlassPlateItem.Step waiting = GlassPlateItem.nextStep(table.getPlate(), gameTime);
+                say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_waiting",
+                        waiting != null && waiting.inDarkroomBox()
+                                ? waiting.chemicalName() : Component.empty()));
             }
             return InteractionResult.SUCCESS;
         }
@@ -207,12 +218,12 @@ public class DarkroomTableBlock extends BaseEntityBlock {
                 : null;
         Component note = null;
         if (step != null && step.inDarkroomBox()) {
-            if (!GlassPlateItem.hasChemical(player, step)) {
+            if (!GlassPlateItem.holdsChemical(player, step)) {
                 // 蓋は閉じるが工程は始まらない。板は無事のまま中で待つ（§30 決定4 の
-                // 「失敗の状態を 1 つも増やさない」）。
+                // 「失敗の状態を 1 つも増やさない」）。もう一度薬品を持って閉じ直せばよい。
                 note = Component.translatable("message.old_glass_photograph.darkroom.need_chemical",
                         step.chemicalName());
-            } else if (GlassPlateItem.consumeChemical(player, step)) {
+            } else if (GlassPlateItem.consumeHeldChemical(player, step)) {
                 table.startProcess(step);
                 note = step.startMessage();
             }
