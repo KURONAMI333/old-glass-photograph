@@ -23,8 +23,9 @@ public class WetPlateCameraBlockEntity extends BlockEntity {
     /**
      * capture 待ちの上限。超えたら session を捨てる。
      *
-     * <p>露光窓の上限（{@code MAX_EXPOSURE_TICKS} 240）＋ ファインダー（20）＋
-     * コールバック待ち（200）＋ 余裕を全部覆う必要がある。ここが露光より短いと、
+     * <p>token はシャッターが開いた時にだけ発行される（覗いている間は持たない）ので、
+     * 露光窓の上限（{@code MAX_EXPOSURE_TICKS} 240）＋ コールバック待ち（200）＋
+     * 余裕を覆えばよい。ここが露光より短いと、
      * <b>暗い場所の長い露光ほど token が先に無効化されて写真が黙って消える</b>
      * （取り返しのつかない失敗を作らないという受理済みの原則に反する）。
      */

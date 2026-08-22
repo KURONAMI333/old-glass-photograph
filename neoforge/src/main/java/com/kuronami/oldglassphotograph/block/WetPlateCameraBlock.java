@@ -43,12 +43,13 @@ import org.jspecify.annotations.Nullable;
  * <p>この塊で通す操作:
  * <ul>
  *   <li>Glass Plate を持って右クリック = 装填</li>
- *   <li>素手で右クリック = 撮影（client へ capture 要求 -> 潜像を装填 Plate へ書く）</li>
+ *   <li>素手で右クリック = ファインダーを覗く。撮影はここからもう一度クリックする
+ *       （{@code MODJAM_DECISIONS_OGP.md} §31。露光の進行は
+ *       {@link com.kuronami.oldglassphotograph.capture.PhotoCaptureController} が持つ）</li>
  *   <li>スニーク + 素手で右クリック = 装填 Plate の取り出し</li>
  * </ul>
  * <b>BlockEntity は下半分だけが持つ。</b>上半分への操作は全て下半分へ転送する
  * （player はレンズのある上半分を触るので、上半分でも同じように効くことが必須）。
- * 露光時間・Viewfinder・暗室工程はまだ無い。
  */
 public class WetPlateCameraBlock extends BaseEntityBlock {
 
@@ -200,7 +201,7 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         }
         camera.setPlate(stack.split(1));
         serverPlayer.sendSystemMessage(Component.literal(
-                "Plate loaded. Hold right-click to expose."), true);
+                "Plate loaded. Right-click the camera to look through it."), true);
         return InteractionResult.SUCCESS;
     }
 
@@ -222,7 +223,7 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         // 撮る前に見られること自体が要件（MODJAM_DECISIONS_OGP.md §2 Fun 案1）。
         // 撮影原点はレンズのある上半分（basePos.above()）。下半分を右クリックしても同じ絵になる。
         BlockPos lensPos = basePos.above();
-        PhotoCaptureController.requestCapture(serverPlayer, camera, basePos, lensPos, state.getValue(FACING));
+        PhotoCaptureController.openViewfinder(serverPlayer, camera, basePos, lensPos, state.getValue(FACING));
         return InteractionResult.SUCCESS;
     }
 

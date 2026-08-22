@@ -74,9 +74,23 @@ public final class ExposureModel {
         return (int) Math.min(Math.round(ticks), 100000L);
     }
 
-    /** その明るさで露光が成立しうるか（上限まで押せば目標に届くか）。 */
-    public static boolean isReachable(int light) {
-        return requiredTicks(light) <= PhotoCaptureController.MAX_EXPOSURE_TICKS;
+    /**
+     * この明るさをファインダーに出す 1 行へ落とす。<b>数値は出さない</b>
+     * （{@code MODJAM_DECISIONS_OGP.md} §15）。境目は目標 tick の比で切ってあるので、
+     * 露光モデルを触れば読みも一緒に動く。
+     */
+    public static ViewfinderReading reading(int light) {
+        int required = requiredTicks(light);
+        if (required > PhotoCaptureController.MAX_EXPOSURE_TICKS) {
+            return ViewfinderReading.TOO_DARK;
+        }
+        if (required <= PhotoCaptureController.NOMINAL_EXPOSURE_TICKS * 7 / 5) {
+            return ViewfinderReading.BRIGHT;
+        }
+        if (required <= PhotoCaptureController.NOMINAL_EXPOSURE_TICKS * 11 / 5) {
+            return ViewfinderReading.SOFT;
+        }
+        return ViewfinderReading.DIM;
     }
 
     /**
@@ -120,22 +134,20 @@ public final class ExposureModel {
             return exposureTicks / (double) requiredTicks;
         }
 
-        /** actionbar に出す 1 行。何が足りなかったのかが player に分かる形にする。 */
+        /**
+         * 露光が終わった時に actionbar へ出す 1 行。
+         *
+         * <p>視点が戻ること自体が「終わった」の合図なので（{@code MODJAM_DECISIONS_OGP.md} §14）、
+         * ここは結果だけを言う。<b>秒も光量も出さない</b>（§15）。
+         */
         public String message() {
             if (band == Band.NORMAL) {
-                return "Exposed - " + secs(exposureTicks) + "s at light " + light + ".";
+                return "Exposed. The plate holds a latent image.";
             }
             if (requiredTicks > PhotoCaptureController.MAX_EXPOSURE_TICKS) {
-                return "Underexposed - light " + light + " needs " + secs(requiredTicks)
-                        + "s, longer than this camera can hold open ("
-                        + secs(PhotoCaptureController.MAX_EXPOSURE_TICKS) + "s). Bring light.";
+                return "Underexposed. It is too dark here to fill the plate. Bring light.";
             }
-            return "Underexposed - held " + secs(exposureTicks) + "s of the "
-                    + secs(requiredTicks) + "s light " + light + " needs.";
-        }
-
-        private static String secs(int ticks) {
-            return String.format(java.util.Locale.ROOT, "%.1f", ticks / 20.0);
+            return "Underexposed. The shutter closed before the plate had gathered enough light.";
         }
     }
 

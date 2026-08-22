@@ -8,22 +8,22 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /**
- * client -> server。露光が成立しなかったことを返す。
+ * client -> server。露光が写真にならずに終わったことを返す。
  *
- * <p>これが無いと、押し間違いで離した player は {@code CAPTURE_TIMEOUT_TICKS}（400 tick = 20 秒）
+ * <p>これが無いと、露光をやめた player は {@code WetPlateCameraBlockEntity.CAPTURE_TIMEOUT_TICKS}
  * のあいだ「Exposure already in progress.」を見続けることになる。
  *
- * @param frames 露光を中止した時点で撮れていた枚数。0 ならまだ静定中だった
- * @param reason {@link #REASON_PEEK} なら覗いただけ（失敗ではないので何も言わない）。
- *               {@link #REASON_TOO_SHORT} なら露光が始まった後で規定枚数に満たずに離した
+ * @param frames 露光をやめた時点で撮れていた枚数
+ * @param reason {@link #REASON_LEFT} なら撮らずにファインダーから出た（失敗ではないので何も言わない）。
+ *               {@link #REASON_TOO_SHORT} ならシャッターが開いた直後に閉じて 1 枚も像が乗らなかった
  */
 public record PhotoCaptureAbortPayload(int token, int ticks, int frames, int reason)
         implements CustomPacketPayload {
 
-    /** 露光が始まる前に離した = ファインダーを覗いただけ。 */
-    public static final int REASON_PEEK = 0;
+    /** 撮らずにファインダーから出た（シャッターを開けていない・強制復帰も含む）。 */
+    public static final int REASON_LEFT = 0;
 
-    /** 露光は始まったが規定枚数に満たないうちに離した。 */
+    /** シャッターは開いたが、規定枚数に満たないうちに閉じた。板は消費しない。 */
     public static final int REASON_TOO_SHORT = 1;
 
     public static final CustomPacketPayload.Type<PhotoCaptureAbortPayload> TYPE =
