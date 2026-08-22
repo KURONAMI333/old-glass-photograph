@@ -73,5 +73,23 @@
 
   "message.old_glass_photograph.exposure.normal": "Exposed. The plate holds a latent image.",
   "message.old_glass_photograph.exposure.under_dark": "Underexposed. It is too dark here to fill the plate. Bring light.",
-  "message.old_glass_photograph.exposure.under_short": "Underexposed. The shutter closed before the plate had gathered enough light."
+  "message.old_glass_photograph.exposure.under_short": "Underexposed. The shutter closed before the plate had gathered enough light.",
+  "advancement.old_glass_photograph.root.title": "Old Glass Photograph",
+  "advancement.old_glass_photograph.root.description": "Light, glass, and a great deal of patience",
+  "advancement.old_glass_photograph.lights_out.title": "Lights Out",
+  "advancement.old_glass_photograph.lights_out.description": "Put a glass plate into a Darkroom Table",
+  "advancement.old_glass_photograph.behind_the_lens.title": "Behind the Lens",
+  "advancement.old_glass_photograph.behind_the_lens.description": "Load a wet plate into a Wet Plate Camera",
+  "advancement.old_glass_photograph.hold_still.title": "Hold Still",
+  "advancement.old_glass_photograph.hold_still.description": "Finish your first photograph",
+  "advancement.old_glass_photograph.a_closer_look.title": "A Closer Look",
+  "advancement.old_glass_photograph.a_closer_look.description": "Hold a finished photograph up and look at it properly",
+  "advancement.old_glass_photograph.long_exposure.title": "The Long Exposure",
+  "advancement.old_glass_photograph.long_exposure.description": "Wait out a whole exposure in dim light",
+  "advancement.old_glass_photograph.underexposed.title": "Not Enough Light",
+  "advancement.old_glass_photograph.underexposed.description": "The shutter closed before the plate had filled, and the photograph came out dark",
+  "advancement.old_glass_photograph.light_got_in.title": "Light Got In",
+  "advancement.old_glass_photograph.light_got_in.description": "The lid stood open while the box worked, and the photograph fogged",
+  "advancement.old_glass_photograph.dry_plate.title": "Dry Plate",
+  "advancement.old_glass_photograph.dry_plate.description": "The collodion dried before the plate was used, and the glass came back clean"
 }

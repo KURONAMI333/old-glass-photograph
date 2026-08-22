@@ -1,0 +1,24 @@
+{
+  "criteria": {
+    "a_closer_look": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.a_closer_look.description"
+    },
+    "icon": {
+      "id": "old_glass_photograph:photograph"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.a_closer_look.title"
+    }
+  },
+  "parent": "old_glass_photograph:hold_still",
+  "requirements": [
+    [
+      "a_closer_look"
+    ]
+  ]
+}

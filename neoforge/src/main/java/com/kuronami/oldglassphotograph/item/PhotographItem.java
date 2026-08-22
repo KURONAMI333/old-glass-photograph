@@ -1,6 +1,8 @@
 package com.kuronami.oldglassphotograph.item;
 
+import com.kuronami.oldglassphotograph.OgpAdvancements;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -62,6 +64,11 @@ public final class PhotographItem extends MapItem {
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide()) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                // 見る面そのものは client の中で閉じているので、server が知れるのは
+                // 「写真を手に持って右クリックした」ところまで。節目としてはそれで足りる。
+                OgpAdvancements.award(serverPlayer, OgpAdvancements.A_CLOSER_LOOK);
+            }
             return InteractionResult.CONSUME;
         }
         return PhotographViewRequest.toggle(hand) ? InteractionResult.SUCCESS : InteractionResult.PASS;

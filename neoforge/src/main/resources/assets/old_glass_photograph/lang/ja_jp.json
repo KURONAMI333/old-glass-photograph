@@ -73,5 +73,23 @@
 
   "message.old_glass_photograph.exposure.normal": "露光しました。板に潜像が写っています。",
   "message.old_glass_photograph.exposure.under_dark": "露光不足です。ここは暗すぎます。明かりを持ってきてください。",
-  "message.old_glass_photograph.exposure.under_short": "露光不足です。光が溜まる前にシャッターが閉じました。"
+  "message.old_glass_photograph.exposure.under_short": "露光不足です。光が溜まる前にシャッターが閉じました。",
+  "advancement.old_glass_photograph.root.title": "Old Glass Photograph",
+  "advancement.old_glass_photograph.root.description": "光とガラスと、たっぷりの根気",
+  "advancement.old_glass_photograph.lights_out.title": "灯りを消して",
+  "advancement.old_glass_photograph.lights_out.description": "ガラス乾板を暗室台に入れる",
+  "advancement.old_glass_photograph.behind_the_lens.title": "レンズの後ろへ",
+  "advancement.old_glass_photograph.behind_the_lens.description": "湿板カメラに湿板を装填する",
+  "advancement.old_glass_photograph.hold_still.title": "動かないで",
+  "advancement.old_glass_photograph.hold_still.description": "はじめての写真を仕上げる",
+  "advancement.old_glass_photograph.a_closer_look.title": "光にかざして",
+  "advancement.old_glass_photograph.a_closer_look.description": "仕上がった写真を手に持ってじっくり見る",
+  "advancement.old_glass_photograph.long_exposure.title": "長い露光",
+  "advancement.old_glass_photograph.long_exposure.description": "暗い光の中で、露光を最後まで待ち切る",
+  "advancement.old_glass_photograph.underexposed.title": "光が足りない",
+  "advancement.old_glass_photograph.underexposed.description": "板が満ちる前にシャッターが閉じ、暗い写真になった",
+  "advancement.old_glass_photograph.light_got_in.title": "光が入った",
+  "advancement.old_glass_photograph.light_got_in.description": "蓋が開いたまま工程が進み、写真がかぶった",
+  "advancement.old_glass_photograph.dry_plate.title": "乾いた板",
+  "advancement.old_glass_photograph.dry_plate.description": "使う前にコロジオンが乾き、板は素のガラスに戻った"
 }
