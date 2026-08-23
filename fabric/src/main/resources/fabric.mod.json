@@ -6,6 +6,11 @@
   "description": "${description}",
   "icon": "${mod_id}.png",
   "authors": ["${mod_author}"],
+  "contact": {
+    "homepage": "https://github.com/KURONAMI333/old-glass-photograph",
+    "issues": "https://github.com/KURONAMI333/old-glass-photograph/issues",
+    "sources": "https://github.com/KURONAMI333/old-glass-photograph"
+  },
   "license": "${license}",
   "environment": "*",
   "entrypoints": {
