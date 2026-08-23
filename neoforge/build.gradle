@@ -3,16 +3,37 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
+sourceSets {
+    // 開発専用の GameTest 足場。jar タスクの入力は main だけなので、この source set は
+    // 出荷 jar に入らない（PLAYBOOK_GAMETEST.md Phase 1 / mod-066 mc-26.2 セルと同型）。
+    gametest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
 neoForge {
     version = neoforge_version
     def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')
     if (at.exists()) {
         accessTransformers.from(at.absolutePath)
     }
+    addModdingDependenciesTo sourceSets.gametest
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+        // GameTest を登録するだけの開発専用 mod。gameTestServer の run にしか読み込ませない。
+        "${mod_id}_gametest" {
+            sourceSet sourceSets.gametest
+        }
+    }
     runs {
         configureEach {
             systemProperty('neoforge.enabledGameTestNamespaces', mod_id)
             ideName = "NeoForge ${it.name.capitalize()} (${project.path})"
+            // 既定は「登録済みの mod 全部」。テスト mod が client/server にも載ってしまうので明示する。
+            loadedMods = [project.neoForge.mods.getByName(mod_id)]
         }
         client {
             client()
@@ -34,10 +55,16 @@ neoForge {
         server {
             server()
         }
-    }
-    mods {
-        "${mod_id}" {
-            sourceSet sourceSets.main
+        // Headless behaviour tests: ./gradlew :neoforge:runGameTestServer
+        // namespace は上の configureEach で既に mod_id に設定済み。
+        gameTestServer {
+            type = 'gameTestServer'
+            // テスト本体・テスト mod・テスト用 structure はこの source set にしかない。
+            sourceSet = sourceSets.gametest
+            loadedMods = [
+                    project.neoForge.mods.getByName(mod_id),
+                    project.neoForge.mods.getByName("${mod_id}_gametest")
+            ]
         }
     }
 }

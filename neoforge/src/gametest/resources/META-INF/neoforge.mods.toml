@@ -1,0 +1,19 @@
+# 開発専用の companion mod。出荷 jar には入らない (`neoforge/src/gametest` は jar タスクの
+# 入力ではなく、`./gradlew :neoforge:runGameTestServer` の実行時クラスパスにだけ載る)。
+#
+# 値はリテラルで書く。processResources の expand は main の source set にしか設定されていないので
+# ここで ${...} を書くとそのまま出力され FML がロードを拒否する。
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "All Rights Reserved"
+[[mods]]
+modId = "old_glass_photograph_gametest"
+version = "0.0.0"
+displayName = "Old Glass Photograph GameTests (dev only)"
+description = '''Registers the Old Glass Photograph GameTest instances. Development only; never shipped.'''
+[[dependencies.old_glass_photograph_gametest]]
+modId = "old_glass_photograph"
+type = "required"
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "BOTH"
