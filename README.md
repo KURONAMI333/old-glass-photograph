@@ -36,7 +36,7 @@
 ## Installation
 
 1. NeoForge（Minecraft 26.2）を導入
-2. `old-glass-photograph-x.y.z.jar` を `mods/` フォルダに放り込む
+2. `old_glass_photograph-0.1.0-neoforge-26.2.jar` を `mods/` フォルダに放り込む
 
 ---
 
