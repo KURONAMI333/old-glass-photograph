@@ -4,6 +4,7 @@
   "version": "${version}",
   "name": "${mod_name}",
   "description": "${description}",
+  "icon": "${mod_id}.png",
   "authors": ["${mod_author}"],
   "license": "${license}",
   "environment": "*",
