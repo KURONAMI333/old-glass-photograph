@@ -20,6 +20,11 @@ neoForge {
             if (project.hasProperty('ogpConnect')) {
                 systemProperty('ogp.connect', project.property('ogpConnect').toString())
             }
+            // ストア用スクショ撮影: -PogpUsername=KURONAMI333 で dev 既定の "Dev" を上書きする
+            // （写真の刻印にプレイヤー名が載るので、公開する画では開発環境の名前を出さない）
+            if (project.hasProperty('ogpUsername')) {
+                programArguments.addAll '--username', project.property('ogpUsername').toString()
+            }
             gameDirectory = project.file('run-client')
         }
         data {
