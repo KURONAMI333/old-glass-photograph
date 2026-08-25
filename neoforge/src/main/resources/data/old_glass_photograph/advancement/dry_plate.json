@@ -10,7 +10,7 @@
     },
     "hidden": true,
     "icon": {
-      "id": "minecraft:glass_pane"
+      "id": "old_glass_photograph:collodion_kit"
     },
     "title": {
       "translate": "advancement.old_glass_photograph.dry_plate.title"

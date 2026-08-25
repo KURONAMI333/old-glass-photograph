@@ -9,7 +9,7 @@
       "translate": "advancement.old_glass_photograph.a_closer_look.description"
     },
     "icon": {
-      "id": "old_glass_photograph:photograph"
+      "id": "minecraft:spyglass"
     },
     "title": {
       "translate": "advancement.old_glass_photograph.a_closer_look.title"
