@@ -26,6 +26,12 @@
   "tooltip.old_glass_photograph.camera.facing": "The lens points the way you are facing when you place it.",
   "tooltip.old_glass_photograph.camera.stand_behind": "Stand close behind it and right-click to look through it.",
 
+  "jade.old_glass_photograph.camera.empty": "No plate loaded",
+  "jade.old_glass_photograph.camera.plate": "Plate: %s",
+  "jade.old_glass_photograph.darkroom.empty": "No plate inside",
+  "jade.old_glass_photograph.darkroom.plate": "Plate: %s",
+  "jade.old_glass_photograph.darkroom.progress": "Progress: %s%%",
+
   "view.old_glass_photograph.taken_by": "Taken by %s",
   "view.old_glass_photograph.day": "Day %s",
   "view.old_glass_photograph.captured_at": "Captured %s",
