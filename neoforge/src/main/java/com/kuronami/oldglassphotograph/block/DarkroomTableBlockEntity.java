@@ -74,6 +74,21 @@ public class DarkroomTableBlockEntity extends BlockEntity {
     }
 
     /**
+     * 動いている工程の進捗を百分率で返す。工程がない時は 0。
+     *
+     * <p>Jade のように BlockEntity の状態を外へ表示する連携は、この値だけを読む。
+     * 工程の進行や保存の挙動は変えない。
+     *
+     * @return 工程全体に対する完了済みの百分率
+     */
+    public int getWorkProgressPercent() {
+        if (step == null || step.durationTicks() <= 0) {
+            return 0;
+        }
+        return Math.clamp((step.durationTicks() - workTicks) * 100 / step.durationTicks(), 0, 100);
+    }
+
+    /**
      * 箱の中の板が<b>取り出し待ち</b>か。工程を終えた板と、箱ではもう何もできない板の両方。
      *
      * <p>「入れたがまだ始めていない板」と区別が要る（{@code MODJAM_DECISIONS_OGP.md} B-2 で

@@ -173,8 +173,13 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
     /** 覗ける立ち位置の上限距離（水平・ブロック）。これより遠いと「覗いている」と言えない。 */
     private static final double PEEK_RANGE = 2.5;
 
-    /** 下半分の位置。上半分を渡されたら1つ下げる。どちらの半分に対しても呼べる。 */
-    private static BlockPos basePos(BlockPos pos, BlockState state) {
+    /**
+     * 下半分の位置。上半分を渡されたら1つ下げる。どちらの半分に対しても呼べる。
+     *
+     * <p>BlockEntity は下半分にしか無い（{@code newBlockEntity} が上半分では null を返す）ので、
+     * 外から状態を読む側は必ずここを通してから {@code getBlockEntity} を引く。
+     */
+    public static BlockPos basePos(BlockPos pos, BlockState state) {
         return state.getValue(HALF) == DoubleBlockHalf.UPPER ? pos.below() : pos;
     }
 

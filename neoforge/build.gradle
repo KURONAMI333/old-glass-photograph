@@ -46,6 +46,13 @@ neoForge {
             if (project.hasProperty('ogpUsername')) {
                 programArguments.addAll '--username', project.property('ogpUsername').toString()
             }
+            // シェーダー検証用: -PogpNoGlValidation で dev 限定の GL 検証を切る
+            // Iris の MixinRenderPipeline が getVertexFormatBindings() を 1 要素配列に差し替えるため、
+            // 16 スロット固定長を前提にした GlCommandEncoder.validateDraw が dev でだけ落ちる
+            // （IrisShaders/Iris#3304）。切っても配列はそのまま流れるので製品と同じ経路を通る。
+            if (project.hasProperty('ogpNoGlValidation')) {
+                systemProperty('neoforge.disableGlValidation', 'true')
+            }
             gameDirectory = project.file('run-client')
         }
         data {
@@ -70,3 +77,13 @@ neoForge {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    maven {
+        url = 'https://api.modrinth.com/maven'
+    }
+}
+
+dependencies {
+    compileOnly 'maven.modrinth:nvQzSEkH:fQ5Kzx2d'
+}
