@@ -10,7 +10,7 @@
     },
     "hidden": true,
     "icon": {
-      "id": "old_glass_photograph:glass_plate"
+      "id": "old_glass_photograph:developer"
     },
     "title": {
       "translate": "advancement.old_glass_photograph.underexposed.title"

@@ -17,7 +17,7 @@
     },
     "frame": "goal",
     "icon": {
-      "id": "old_glass_photograph:photograph"
+      "id": "old_glass_photograph:fixer"
     },
     "title": {
       "translate": "advancement.old_glass_photograph.hold_still.title"
