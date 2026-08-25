@@ -26,7 +26,7 @@ Eight advancements follow the process, three of them for the ways it goes wrong.
 
 ## Compatibility
 
-NeoForge, Minecraft 26.2. Renders through the vanilla pipeline only — shaders are not supported.
+NeoForge, Minecraft 26.2. Shaders are supported — a plate records the scene the way you see it, so shader lighting and water reflections end up on the photograph.
 
 ---
 
