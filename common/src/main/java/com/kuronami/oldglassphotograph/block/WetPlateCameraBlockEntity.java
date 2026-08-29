@@ -1,6 +1,6 @@
 package com.kuronami.oldglassphotograph.block;
 
-import com.kuronami.oldglassphotograph.OgpRegistry;
+import com.kuronami.oldglassphotograph.OgpObjects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -38,7 +38,7 @@ public class WetPlateCameraBlockEntity extends BlockEntity {
     private int pendingTicks;
 
     public WetPlateCameraBlockEntity(BlockPos pos, BlockState state) {
-        super(OgpRegistry.CAMERA_BLOCK_ENTITY.get(), pos, state);
+        super(OgpObjects.cameraBlockEntity(), pos, state);
     }
 
     public ItemStack getPlate() {

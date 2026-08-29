@@ -1,9 +1,9 @@
 package com.kuronami.oldglassphotograph.capture;
 
 import com.kuronami.oldglassphotograph.OgpAdvancements;
-import com.kuronami.oldglassphotograph.OgpRegistry;
+import com.kuronami.oldglassphotograph.OgpObjects;
 import com.kuronami.oldglassphotograph.component.LatentImage;
-import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PhotoCredit;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -79,7 +79,7 @@ public final class PhotoDeveloper {
     }
 
     public static boolean develop(ServerPlayer player, ItemStack plate) {
-        LatentImage latent = plate.get(OgpDataComponents.LATENT_IMAGE.get());
+        LatentImage latent = plate.get(OgpComponents.latentImage());
         if (latent == null) {
             return false;
         }
@@ -105,7 +105,7 @@ public final class PhotoDeveloper {
         long traceSeed = player.getUUID().getMostSignificantBits()
                 ^ level.getGameTime()
                 ^ ((long) exposure << 20);
-        int fogTicks = plate.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0);
+        int fogTicks = plate.getOrDefault(OgpComponents.plateFog(), 0);
         double traceIntensity = traceIntensity(result.dose(), fogTicks);
         byte[] traced = applyPlateTraces(exposed, traceIntensity, traceSeed);
 
@@ -128,10 +128,10 @@ public final class PhotoDeveloper {
         MapId id = level.getFreeMapId();
         level.setMapData(id, locked);
 
-        ItemStack photo = new ItemStack(OgpRegistry.PHOTOGRAPH.get());
+        ItemStack photo = new ItemStack(OgpObjects.photograph());
         photo.set(DataComponents.MAP_ID, id);
         // 撮影者と日付。ここが唯一の書き込み口で、以後この写真では変わらない。
-        photo.set(OgpDataComponents.PHOTO_CREDIT.get(),
+        photo.set(OgpComponents.photoCredit(),
                 new PhotoCredit(player.getGameProfile().name(), PhotoCredit.dayOf(level.getGameTime()),
                         PhotoCredit.captureTimestamp()));
 

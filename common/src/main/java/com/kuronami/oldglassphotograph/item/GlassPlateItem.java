@@ -1,10 +1,10 @@
 package com.kuronami.oldglassphotograph.item;
 
 import com.kuronami.oldglassphotograph.OgpAdvancements;
-import com.kuronami.oldglassphotograph.OgpRegistry;
+import com.kuronami.oldglassphotograph.OgpObjects;
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlock;
 import com.kuronami.oldglassphotograph.capture.PhotoDeveloper;
-import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -105,11 +105,11 @@ public class GlassPlateItem extends Item {
     }
 
     public static boolean isExposed(ItemStack stack) {
-        return stack.has(OgpDataComponents.LATENT_IMAGE.get());
+        return stack.has(OgpComponents.latentImage());
     }
 
     public static @Nullable PlateProcess process(ItemStack stack) {
-        return stack.get(OgpDataComponents.PLATE_PROCESS.get());
+        return stack.get(OgpComponents.plateProcess());
     }
 
     /** カメラに入れてよい板か（濡れた感光板で、まだ潜像を持っていない）。 */
@@ -125,9 +125,9 @@ public class GlassPlateItem extends Item {
      * {@link #washInCauldron}）。
      */
     private static void resetToBlank(ItemStack stack) {
-        stack.remove(OgpDataComponents.PLATE_PROCESS.get());
-        stack.remove(OgpDataComponents.LATENT_IMAGE.get());
-        stack.remove(OgpDataComponents.PLATE_FOG.get());
+        stack.remove(OgpComponents.plateProcess());
+        stack.remove(OgpComponents.latentImage());
+        stack.remove(OgpComponents.plateFog());
         // 素の板へ戻る以上、重なる枚数も戻す。ここで {@code remove} を呼ぶと
         // 「既定値を打ち消した」状態になり、{@code getOrDefault(MAX_STACK_SIZE, 1)} が 1 を返す。
         // 既定値と同じ値を {@code set} すると patch から消えるので、素の板と本当に同じ物になる
@@ -155,7 +155,7 @@ public class GlassPlateItem extends Item {
 
     /**
      * 水入り大釜（{@code minecraft:water_cauldron}）で洗って、工程のどの段階でも
-     * 一回で素のガラス板へ戻す。{@code OgpRegistry} が
+     * 一回で素のガラス板へ戻す。{@code OgpObjects} が
      * {@code RegisterCauldronInteractionEvent.Interaction}（mod bus・{@code "water"} dispatcher）
      * 経由でこのメソッドを登録する。
      *
@@ -339,9 +339,9 @@ public class GlassPlateItem extends Item {
     public static void applyDarkroomResult(ItemStack plate, Step step, long gameTime) {
         markSingle(plate);
         switch (step) {
-            case PREPARE -> plate.set(OgpDataComponents.PLATE_PROCESS.get(), new PlateProcess(
+            case PREPARE -> plate.set(OgpComponents.plateProcess(), new PlateProcess(
                     PlateProcess.Stage.SENSITIZED, gameTime + WET_TICKS, WET_TICKS / 20));
-            case DEVELOP -> plate.set(OgpDataComponents.PLATE_PROCESS.get(),
+            case DEVELOP -> plate.set(OgpComponents.plateProcess(),
                     new PlateProcess(PlateProcess.Stage.DEVELOPED, 0L, 0));
             default -> {
             }
@@ -403,7 +403,7 @@ public class GlassPlateItem extends Item {
         }
         int seconds = (int) Math.max(0, (p.wetUntil() - gameTime + 19) / 20);
         if (seconds != p.secondsLeft()) {
-            stack.set(OgpDataComponents.PLATE_PROCESS.get(), p.withSecondsLeft(seconds));
+            stack.set(OgpComponents.plateProcess(), p.withSecondsLeft(seconds));
         }
     }
 
@@ -450,7 +450,7 @@ public class GlassPlateItem extends Item {
 
     /** かぶりが乗っている板だけ 1 行足す。0 の板には何も出さない。 */
     private static void fogged(ItemStack stack, Consumer<Component> adder) {
-        if (stack.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0) > 0) {
+        if (stack.getOrDefault(OgpComponents.plateFog(), 0) > 0) {
             adder.accept(Component.translatable("tooltip.old_glass_photograph.plate.fogged")
                     .withStyle(ChatFormatting.GOLD));
         }
@@ -593,9 +593,9 @@ public class GlassPlateItem extends Item {
 
         public @Nullable Item chemical() {
             return switch (this) {
-                case PREPARE -> OgpRegistry.COLLODION_KIT.get();
-                case DEVELOP -> OgpRegistry.DEVELOPER.get();
-                case FIX -> OgpRegistry.FIXER.get();
+                case PREPARE -> OgpObjects.collodionKit();
+                case DEVELOP -> OgpObjects.developer();
+                case FIX -> OgpObjects.fixer();
                 case DRIED -> null;
             };
         }

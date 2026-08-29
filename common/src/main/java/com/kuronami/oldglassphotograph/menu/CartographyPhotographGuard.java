@@ -5,8 +5,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CartographyTableMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 
 /**
  * 製図台の地図スロットに写真を入れさせない。
@@ -54,15 +52,6 @@ import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 public final class CartographyPhotographGuard {
 
     private CartographyPhotographGuard() {
-    }
-
-    /** server 側。{@link PlayerContainerEvent.Open} は menu 構築後に来る（{@code MC: ServerPlayer.java:1448}）。 */
-    public static void init() {
-        NeoForge.EVENT_BUS.addListener(CartographyPhotographGuard::onContainerOpen);
-    }
-
-    private static void onContainerOpen(PlayerContainerEvent.Open event) {
-        apply(event.getContainer());
     }
 
     /**

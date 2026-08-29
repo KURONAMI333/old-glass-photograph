@@ -5,6 +5,7 @@ import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
 import com.kuronami.oldglassphotograph.capture.ViewfinderGeometry;
 import com.kuronami.oldglassphotograph.capture.ViewfinderReading;
 import com.kuronami.oldglassphotograph.component.LatentImage;
+import com.kuronami.oldglassphotograph.network.OgpNet;
 import com.kuronami.oldglassphotograph.network.PhotoCaptureAbortPayload;
 import com.kuronami.oldglassphotograph.network.PhotoMapPixelsPayload;
 import com.kuronami.oldglassphotograph.network.ShutterOpenPayload;
@@ -31,15 +32,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Marker;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.client.event.ViewportEvent;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
-import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,18 +48,22 @@ import org.slf4j.LoggerFactory;
  * カメラの向きに足し、シャッターを切った時の向きが写真になる。<b>露光が始まったら固定する</b>——
  * 三脚に載ったカメラは露光中に動かないし、動かせると 40 枚の時間平均が全部ぶれて
  * 動体消失（§1）が壊れる。固定は「露光中は向きを書く経路が 1 つも無い」ことで保証する
- * （{@link #onCameraAngles} の PEEK 分岐だけが {@link #yawOffset} を書く）。
+ * （{@link #beforeCameraUpdate} の PEEK 分岐だけが {@link #yawOffset} を書く）。
  *
  * <p><b>露光は 1 枚の撮影ではなく、窓のあいだの複数フレームの輝度平均。</b>
  * 実物の湿板写真で動体が消えるのは露光中の光を平均するからで、同じ原理をそのまま置いている。
  * 各フレームは撮った直後に 128x128 gray へ落としてから累積する（フル解像度で累積しない）。
  * 量子化は server 側の現像で 1 回だけ行う。
  *
- * <p>撮影点は RenderLevelStageEvent.AfterLevel。この時点の mainRenderTarget には
+ * <p>撮影点はレンダーのレベル描画の終端。この時点の mainRenderTarget には
  * 手も HUD も GUI も入っていない（MODJAM_SPIKE_RESULT.md a 節）。
  * {@code Screenshot#takeScreenshot} は<b>その場でコピー命令を積む</b>
  * （{@code createCommandEncoder().copyTextureToBuffer}）ので、後から GUI を描いても写真に入らない。
  * ファインダーの枠・暗幕・キャップの塗り潰しはすべてこの性質に乗っている。
+ *
+ * <p><b>ローダー配線との境界</b>: このクラスはローダー型を 1 つも import しない。
+ * ローダー側は payload 受信・tick・レベル描画終端・カメラ（FOV と角度）・入力抑止を
+ * 自ローダーの機構からここへ委譲する。
  */
 public final class PhotoCaptureClient {
 
@@ -228,7 +224,7 @@ public final class PhotoCaptureClient {
 
     // --- 首振り。PEEK の間だけ動き、シャッターを開けた時点の値が写真になる ---
 
-    /** 設置向きからの左右のずれ。<b>{@link #onCameraAngles} の PEEK 分岐だけが書く。</b> */
+    /** 設置向きからの左右のずれ。<b>{@link #beforeCameraUpdate} の PEEK 分岐だけが書く。</b> */
     private static float yawOffset;
 
     /** 同じく上下。 */
@@ -272,16 +268,6 @@ public final class PhotoCaptureClient {
     private PhotoCaptureClient() {
     }
 
-    public static void init(IEventBus modBus) {
-        modBus.addListener(PhotoCaptureClient::registerHandlers);
-        modBus.addListener(PhotoCaptureClient::registerGuiLayers);
-        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, PhotoCaptureClient::onClientTick);
-        NeoForge.EVENT_BUS.addListener(RenderLevelStageEvent.AfterLevel.class, PhotoCaptureClient::onAfterLevel);
-        NeoForge.EVENT_BUS.addListener(ViewportEvent.ComputeFov.class, PhotoCaptureClient::onComputeFov);
-        NeoForge.EVENT_BUS.addListener(ViewportEvent.ComputeCameraAngles.class, PhotoCaptureClient::onCameraAngles);
-        NeoForge.EVENT_BUS.addListener(InputEvent.InteractionKeyMappingTriggered.class, PhotoCaptureClient::onInteract);
-    }
-
     /**
      * ファインダーの何かしらの段に入っているか（覗いている・露光中・結果待ち）。
      *
@@ -292,181 +278,20 @@ public final class PhotoCaptureClient {
         return phase != Phase.IDLE;
     }
 
-    private static void registerHandlers(RegisterClientPayloadHandlersEvent event) {
-        event.register(ViewfinderOpenPayload.TYPE, (payload, context) -> openViewfinder(payload));
-        event.register(ShutterOpenPayload.TYPE, (payload, context) -> openShutter(payload));
-        event.register(ViewfinderClosePayload.TYPE, (payload, context) -> closeViewfinder());
+    /** 覗き・露光のあいだ、vanilla の攻撃／使用／ピックを握り潰しているか。 */
+    public static boolean shouldBlockInteractions() {
+        return phase != Phase.IDLE || awaitRelease;
     }
 
-    /**
-     * ファインダーの面。暗幕・すりガラスの枠・レンズキャップ・光の読みを描く。
-     *
-     * <p>vanilla の actionbar（{@code OVERLAY_MESSAGE} レイヤ）は HUD が隠れていると描かれないので、
-     * ここに専用のレイヤを置く。{@code RegisterGuiLayersEvent} で足したレイヤは
-     * vanilla のように {@code hudVisible} で包まれないため、HUD を隠したままでも描かれる。
-     *
-     * <p>ここで描いたものは写真に写り込まない。撮影は {@code RenderLevelStageEvent.AfterLevel} で
-     * GPU のコピー命令を積んでおり、GUI の合成はその後だから。
-     */
-    private static void registerGuiLayers(RegisterGuiLayersEvent event) {
-        event.registerAboveAll(
-                Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "viewfinder"),
-                PhotoCaptureClient::renderViewfinder);
+    /** カメラ実体として置いている Marker（覗いていない間は null）。ローダー側のカメラ配線が読む。 */
+    public static @Nullable Entity cameraMarker() {
+        return marker;
     }
 
-    private static void renderViewfinder(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-        if (phase == Phase.IDLE) {
-            return;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        ViewfinderGeometry.Square open = aperture(mc);
-        if (open == null) {
-            return;
-        }
-        int w = graphics.guiWidth();
-        int h = graphics.guiHeight();
-
-        graphics.nextStratum();
-
-        // 1. 暗幕。開口の外は塗り潰す。ここは<b>絶対に動かさない</b>（撮れる範囲そのものなので）。
-        graphics.fill(0, 0, w, open.y(), CLOTH_COLOR);
-        graphics.fill(0, open.bottom(), w, h, CLOTH_COLOR);
-        graphics.fill(0, open.y(), open.x(), open.bottom(), CLOTH_COLOR);
-        graphics.fill(open.right(), open.y(), w, open.bottom(), CLOTH_COLOR);
-
-        // 2. すりガラスの面・枠・四隅の落ち。マウスの回転に一拍遅れて追う。
-        //    張り出しは開口の一辺に比例させる（固定 px だと大きい画面で枠が糸のように細くなる）。
-        int dx = Math.round(frameDriftX);
-        int dy = Math.round(frameDriftY);
-        int pad = ViewfinderGeometry.framePad(open.side(), (int) Math.ceil(FRAME_DRIFT_MAX));
-        graphics.blit(VIEWFINDER_TEXTURE,
-                open.x() - pad + dx, open.y() - pad + dy,
-                open.right() + pad + dx, open.bottom() + pad + dy,
-                0.0F, 1.0F, 0.0F, 1.0F);
-
-        // 3. レンズキャップ。開いた直後と、露光が満ちた直後に開口を塞ぐ。
-        if (openFlash > 0 || phase == Phase.WAITING) {
-            graphics.fill(open.x(), open.y(), open.right(), open.bottom(), CAP_COLOR);
-        }
-
-        // 4. 光の読み。開口の下辺の内側（枠のすぐ上）に置く。
-        ViewfinderReading current = reading;
-        if (phase != Phase.PEEK || current == null) {
-            return;
-        }
-        Font font = Minecraft.getInstance().font;
-        Component line = current.line();
-        int width = font.width(line);
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(w / 2.0F, open.bottom() - Math.max(24, open.side() / 12.0F));
-        graphics.textWithBackdrop(font, line, -width / 2, -4, width, 0xFFFFFFFF);
-        graphics.pose().popMatrix();
-    }
-
-    /**
-     * ファインダーの開口（GUI px）。写真になる切り出しと同じ矩形。
-     *
-     * <p>寸法は screenshot が読むのと同じ {@code mainRenderTarget} から採る。window から採ると
-     * render target がずれた時に、絵と写真が黙って食い違う。
-     */
-    private static ViewfinderGeometry.@Nullable Square aperture(Minecraft mc) {
-        RenderTarget target = mc.gameRenderer.mainRenderTarget();
-        if (target.width <= 0 || target.height <= 0) {
-            return null;
-        }
-        return ViewfinderGeometry.aperture(target.width, target.height, mc.getWindow().getGuiScale());
-    }
-
-    /**
-     * カメラ視点のあいだは写真用の固定 FOV を使う。プレイヤーの FOV 設定を継承させない。
-     *
-     * <p>覗いている間も同じ画角にする（覗いた構図と撮れる構図が違うとファインダーの意味が無い）。
-     */
-    private static void onComputeFov(ViewportEvent.ComputeFov event) {
-        if (phase != Phase.IDLE) {
-            event.setFOV(PHOTO_FOV);
-        }
-    }
-
-    /**
-     * 覗いている間の向き。<b>ここが首振りの唯一の書き込み口。</b>
-     *
-     * <p>PEEK の間だけ player のマウス回転の差分を {@link #yawOffset} へ足す。
-     * 露光が始まると分岐に入らないので、<b>向きが変わる経路が存在しない</b>
-     * （フラグで止めているのではなく、書く場所が無い）。
-     */
-    private static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        if (phase == Phase.IDLE) {
-            return;
-        }
-        if (phase == Phase.PEEK) {
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player != null) {
-                float yaw = player.getYRot();
-                float pitch = player.getXRot();
-                float dYaw = Mth.wrapDegrees(yaw - lastPlayerYaw);
-                float dPitch = pitch - lastPlayerPitch;
-                lastPlayerYaw = yaw;
-                lastPlayerPitch = pitch;
-
-                float nextYaw = Mth.clamp(yawOffset + dYaw, -YAW_LIMIT, YAW_LIMIT);
-                float nextPitch = Mth.clamp(pitchOffset + dPitch, -PITCH_LIMIT, PITCH_LIMIT);
-                // 実際に動いた分だけ枠を遅らせる（可動域の端では枠も動かない）。
-                advanceFrameDrift(nextYaw - yawOffset, nextPitch - pitchOffset);
-                yawOffset = nextYaw;
-                pitchOffset = nextPitch;
-            }
-            event.setYaw(targetYaw + yawOffset);
-            event.setPitch(targetPitch + pitchOffset);
-        } else {
-            advanceFrameDrift(0.0F, 0.0F);
-            event.setYaw(targetYaw + shotYawOffset);
-            event.setPitch(targetPitch + shotPitchOffset);
-        }
-        event.setRoll(0.0F);
-    }
-
-    /**
-     * 枠の遅れを 1 フレーム進める。回転が止まれば 0 へ戻る。
-     *
-     * <p>露光中は回転が止まっているので、代わりに {@link #BREATH_AMPLITUDE} の呼吸を目標に置く。
-     * <b>合計は {@link #FRAME_DRIFT_MAX} を超えない</b>（超えると枠が開口へ食い込む）。
-     */
-    private static void advanceFrameDrift(float dYaw, float dPitch) {
-        double scale = Math.max(1.0, Minecraft.getInstance().getWindow().getGuiScale());
-        float breathX = 0.0F;
-        float breathY = 0.0F;
-        if (phase == Phase.EXPOSING) {
-            float t = exposeElapsed * Mth.TWO_PI / BREATH_PERIOD;
-            breathX = Mth.sin(t) * BREATH_AMPLITUDE;
-            // 上下は半周ずらして半分の振れにする。同位相だと斜めの往復になって機械に見える。
-            breathY = Mth.cos(t * 0.5F) * (BREATH_AMPLITUDE * 0.5F);
-        }
-        float targetX = Mth.clamp((float) (-dYaw * FRAME_DRIFT_GAIN / scale) + breathX,
-                -FRAME_DRIFT_MAX, FRAME_DRIFT_MAX);
-        float targetY = Mth.clamp((float) (-dPitch * FRAME_DRIFT_GAIN / scale) + breathY,
-                -FRAME_DRIFT_MAX, FRAME_DRIFT_MAX);
-        frameDriftX += (targetX - frameDriftX) * FRAME_DRIFT_FOLLOW;
-        frameDriftY += (targetY - frameDriftY) * FRAME_DRIFT_FOLLOW;
-    }
-
-    /**
-     * ファインダーに入っている間は vanilla の使用を殺す。
-     *
-     * <p>カメラ実体が Marker になっているあいだ、vanilla の使用ループは
-     * <b>設置 Camera ではなくレンズの先</b>を pick して use を撃つ。シャッターのつもりの
-     * クリックが「視界の先のブロックを right click する」ことになるので、入口で止める。
-     * クリック自体は {@link #onClientTick} が使用キーの立ち上がりから直接拾う。
-     */
-    private static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
-        if (phase != Phase.IDLE || awaitRelease) {
-            event.setSwingHand(false);
-            event.setCanceled(true);
-        }
-    }
+    // ------------------------------------------------------------ payload 受信（server からの指示）
 
     /** 1 回目のクリック。カメラ視点へ移り、光の読みを出す。ここではまだ何も撮らない。 */
-    private static void openViewfinder(ViewfinderOpenPayload payload) {
+    public static void openViewfinder(ViewfinderOpenPayload payload) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) {
             return;
@@ -536,11 +361,11 @@ public final class PhotoCaptureClient {
     }
 
     /** 2 回目のクリックを server が通した。ここから光が溜まりはじめる。 */
-    private static void openShutter(ShutterOpenPayload payload) {
+    public static void openShutter(ShutterOpenPayload payload) {
         if (phase != Phase.PEEK) {
             // すでにファインダーから出た後に返事が届いた。session を放置すると
             // カメラが timeout まで「撮影中」のまま固まる。
-            ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
+            OgpNet.sendToServer(new PhotoCaptureAbortPayload(
                     payload.token(), 0, 0, PhotoCaptureAbortPayload.REASON_LEFT));
             return;
         }
@@ -569,7 +394,7 @@ public final class PhotoCaptureClient {
     }
 
     /** server がシャッターを断った。視点を戻す（理由は actionbar で届く）。 */
-    private static void closeViewfinder() {
+    public static void closeViewfinder() {
         if (phase != Phase.PEEK) {
             return;
         }
@@ -578,7 +403,10 @@ public final class PhotoCaptureClient {
         phase = Phase.IDLE;
     }
 
-    private static void onClientTick(ClientTickEvent.Post event) {
+    // ------------------------------------------------------------ 毎 tick / 每フレームの橋渡し
+
+    /** 每 tick。ローダーの client tick 終端から呼ぶ。 */
+    public static void endClientTick() {
         Minecraft mc = Minecraft.getInstance();
         if (awaitRelease && !mc.options.keyUse.isDown()) {
             awaitRelease = false;
@@ -621,7 +449,7 @@ public final class PhotoCaptureClient {
                     shutterQueued = false;
                     shutterRequested = true;
                     shutterWait = 0;
-                    ClientPacketDistributor.sendToServer(new ShutterRequestPayload(basePos));
+                    OgpNet.sendToServer(new ShutterRequestPayload(basePos));
                 }
             }
             // シャッターが開いている。窓が閉じるか、もう一度クリックするまで。
@@ -652,7 +480,7 @@ public final class PhotoCaptureClient {
                 byte[] pixels = result;
                 if (pixels != null && closeHold <= 0) {
                     restore();
-                    ClientPacketDistributor.sendToServer(
+                    OgpNet.sendToServer(
                             new PhotoMapPixelsPayload(token, resultExposeTicks, resultFrames, pixels));
                     LOG.debug("[ogp] sent avg of {} frames, {} ticks (token {})",
                             resultFrames, resultExposeTicks, token);
@@ -669,6 +497,158 @@ public final class PhotoCaptureClient {
             }
         }
     }
+
+    /**
+     * 每フレーム、カメラが player の回転を読むより前に呼ぶ。首振りの差分更新と枠の遅れを進める。
+     *
+     * <p>角度そのものは {@link #desiredYaw()} / {@link #desiredPitch()} で読む。
+     * NeoForge は ViewportEvent.ComputeCameraAngles、Fabric は Camera mixin が受け持つ。
+     */
+    public static void beforeCameraUpdate() {
+        if (phase == Phase.IDLE) {
+            return;
+        }
+        if (phase == Phase.PEEK) {
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player != null) {
+                float yaw = player.getYRot();
+                float pitch = player.getXRot();
+                float dYaw = Mth.wrapDegrees(yaw - lastPlayerYaw);
+                float dPitch = pitch - lastPlayerPitch;
+                lastPlayerYaw = yaw;
+                lastPlayerPitch = pitch;
+
+                float nextYaw = Mth.clamp(yawOffset + dYaw, -YAW_LIMIT, YAW_LIMIT);
+                float nextPitch = Mth.clamp(pitchOffset + dPitch, -PITCH_LIMIT, PITCH_LIMIT);
+                // 実際に動いた分だけ枠を遅らせる（可動域の端では枠も動かない）。
+                advanceFrameDrift(nextYaw - yawOffset, nextPitch - pitchOffset);
+                yawOffset = nextYaw;
+                pitchOffset = nextPitch;
+            }
+        } else {
+            advanceFrameDrift(0.0F, 0.0F);
+        }
+    }
+
+    /** 覗き・露光中にカメラが向くべき yaw。{@link #beforeCameraUpdate} を毎フレーム先に呼ぶこと。 */
+    public static float desiredYaw() {
+        return phase == Phase.EXPOSING || phase == Phase.WAITING
+                ? targetYaw + shotYawOffset
+                : targetYaw + yawOffset;
+    }
+
+    /** 同じく pitch。 */
+    public static float desiredPitch() {
+        return phase == Phase.EXPOSING || phase == Phase.WAITING
+                ? targetPitch + shotPitchOffset
+                : targetPitch + pitchOffset;
+    }
+
+    /** 覗き・露光中は写真用の固定 FOV。覗いていない間は NaN（ローダー側は何もしない）。 */
+    public static float fovOverride() {
+        return phase == Phase.IDLE ? Float.NaN : PHOTO_FOV;
+    }
+
+    // ------------------------------------------------------------ 描画
+
+    /**
+     * ファインダーの面。暗幕・すりガラスの枠・レンズキャップ・光の読みを描く。
+     *
+     * <p>vanilla の actionbar（{@code OVERLAY_MESSAGE} レイヤ）は HUD が隠れていると描かれないので、
+     * 専用の HUD レイヤに置く。ローダーが追加したレイヤは vanilla のように
+     * {@code hudVisible} で包まれないため、HUD を隠したままでも描かれる。
+     *
+     * <p>ここで描いたものは写真に写り込まない。撮影はレベル描画の終端で
+     * GPU のコピー命令を積んでおり、GUI の合成はその後だから。
+     */
+    public static void renderViewfinder(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+        if (phase == Phase.IDLE) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        ViewfinderGeometry.Square open = aperture(mc);
+        if (open == null) {
+            return;
+        }
+        int w = graphics.guiWidth();
+        int h = graphics.guiHeight();
+
+        graphics.nextStratum();
+
+        // 1. 暗幕。開口の外は塗り潰す。ここは<b>絶対に動かさない</b>（撮れる範囲そのものなので）。
+        graphics.fill(0, 0, w, open.y(), CLOTH_COLOR);
+        graphics.fill(0, open.bottom(), w, h, CLOTH_COLOR);
+        graphics.fill(0, open.y(), open.x(), open.bottom(), CLOTH_COLOR);
+        graphics.fill(open.right(), open.y(), w, open.bottom(), CLOTH_COLOR);
+
+        // 2. すりガラスの面・枠・四隅の落ち。マウスの回転に一拍遅れて追う。
+        //    張り出しは開口の一辺に比例させる（固定 px だと大きい画面で枠が糸のように細くなる）。
+        int dx = Math.round(frameDriftX);
+        int dy = Math.round(frameDriftY);
+        int pad = ViewfinderGeometry.framePad(open.side(), (int) Math.ceil(FRAME_DRIFT_MAX));
+        graphics.blit(VIEWFINDER_TEXTURE,
+                open.x() - pad + dx, open.y() - pad + dy,
+                open.right() + pad + dx, open.bottom() + pad + dy,
+                0.0F, 1.0F, 0.0F, 1.0F);
+
+        // 3. レンズキャップ。開いた直後と、露光が満ちた直後に開口を塞ぐ。
+        if (openFlash > 0 || phase == Phase.WAITING) {
+            graphics.fill(open.x(), open.y(), open.right(), open.bottom(), CAP_COLOR);
+        }
+
+        // 4. 光の読み。開口の下辺の内側（枠のすぐ上）に置く。
+        ViewfinderReading current = reading;
+        if (phase != Phase.PEEK || current == null) {
+            return;
+        }
+        Font font = Minecraft.getInstance().font;
+        Component line = current.line();
+        int width = font.width(line);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(w / 2.0F, open.bottom() - Math.max(24, open.side() / 12.0F));
+        graphics.textWithBackdrop(font, line, -width / 2, -4, width, 0xFFFFFFFF);
+        graphics.pose().popMatrix();
+    }
+
+    /**
+     * ファインダーの開口（GUI px）。写真になる切り出しと同じ矩形。
+     *
+     * <p>寸法は screenshot が読むのと同じ {@code mainRenderTarget} から採る。window から採ると
+     * render target がずれた時に、絵と写真が黙って食い違う。
+     */
+    private static ViewfinderGeometry.@Nullable Square aperture(Minecraft mc) {
+        RenderTarget target = mc.gameRenderer.mainRenderTarget();
+        if (target.width <= 0 || target.height <= 0) {
+            return null;
+        }
+        return ViewfinderGeometry.aperture(target.width, target.height, mc.getWindow().getGuiScale());
+    }
+
+    /**
+     * 枠の遅れを 1 フレーム進める。回転が止まれば 0 へ戻る。
+     *
+     * <p>露光中は回転が止まっているので、代わりに {@link #BREATH_AMPLITUDE} の呼吸を目標に置く。
+     * <b>合計は {@link #FRAME_DRIFT_MAX} を超えない</b>（超えると枠が開口へ食い込む）。
+     */
+    private static void advanceFrameDrift(float dYaw, float dPitch) {
+        double scale = Math.max(1.0, Minecraft.getInstance().getWindow().getGuiScale());
+        float breathX = 0.0F;
+        float breathY = 0.0F;
+        if (phase == Phase.EXPOSING) {
+            float t = exposeElapsed * Mth.TWO_PI / BREATH_PERIOD;
+            breathX = Mth.sin(t) * BREATH_AMPLITUDE;
+            // 上下は半周ずらして半分の振れにする。同位相だと斜めの往復になって機械に見える。
+            breathY = Mth.cos(t * 0.5F) * (BREATH_AMPLITUDE * 0.5F);
+        }
+        float targetX = Mth.clamp((float) (-dYaw * FRAME_DRIFT_GAIN / scale) + breathX,
+                -FRAME_DRIFT_MAX, FRAME_DRIFT_MAX);
+        float targetY = Mth.clamp((float) (-dPitch * FRAME_DRIFT_GAIN / scale) + breathY,
+                -FRAME_DRIFT_MAX, FRAME_DRIFT_MAX);
+        frameDriftX += (targetX - frameDriftX) * FRAME_DRIFT_FOLLOW;
+        frameDriftY += (targetY - frameDriftY) * FRAME_DRIFT_FOLLOW;
+    }
+
+    // ------------------------------------------------------------ 出口まわり
 
     /** 移動・スニークのキーが押されているか。 */
     private static boolean exitKeyDown(Minecraft mc) {
@@ -718,7 +698,7 @@ public final class PhotoCaptureClient {
 
     private static void forceRestore() {
         if (token != 0 && phase != Phase.WAITING) {
-            ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
+            OgpNet.sendToServer(new PhotoCaptureAbortPayload(
                     token, exposeElapsed, framesDispatched, PhotoCaptureAbortPayload.REASON_LEFT));
         }
         restore();
@@ -738,7 +718,7 @@ public final class PhotoCaptureClient {
         phase = Phase.IDLE;
         result = null;
         sessionId++;
-        ClientPacketDistributor.sendToServer(new PhotoCaptureAbortPayload(
+        OgpNet.sendToServer(new PhotoCaptureAbortPayload(
                 token, ticks, frames, PhotoCaptureAbortPayload.REASON_TOO_SHORT));
         LOG.debug("[ogp] exposure closed with {} frames (below {}); plate untouched",
                 frames, PhotoCaptureController.MIN_EXPOSURE_FRAMES);
@@ -822,7 +802,8 @@ public final class PhotoCaptureClient {
         mc.level.playLocalSound(lensPos, sound, SoundSource.BLOCKS, volume, pitch, false);
     }
 
-    private static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    /** レベル描画の終端。露光の 1 フレームを mainRenderTarget から落とす。 */
+    public static void onLevelRenderEnd() {
         if (phase != Phase.EXPOSING || !captureDue) {
             return;
         }

@@ -1,6 +1,6 @@
 package com.kuronami.oldglassphotograph.block;
 
-import com.kuronami.oldglassphotograph.OgpRegistry;
+import com.kuronami.oldglassphotograph.OgpObjects;
 import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import com.mojang.serialization.MapCodec;
@@ -299,14 +299,14 @@ public class WetPlateCameraBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return null;
         }
-        return createTickerHelper(type, OgpRegistry.CAMERA_BLOCK_ENTITY.get(),
+        return createTickerHelper(type, OgpObjects.cameraBlockEntity(),
                 WetPlateCameraBlockEntity::serverTick);
     }
 
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hit) {
-        if (!stack.is(OgpRegistry.GLASS_PLATE.get())) {
+        if (!stack.is(OgpObjects.glassPlate())) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         if (level.isClientSide()) {
