@@ -1,0 +1,33 @@
+{
+  "criteria": {
+    "glass_plate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "old_glass_photograph:glass_plate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:gui/advancements/backgrounds/stone",
+    "description": {
+      "translate": "advancement.old_glass_photograph.root.description"
+    },
+    "icon": {
+      "id": "old_glass_photograph:glass_plate"
+    },
+    "show_toast": false,
+    "title": {
+      "translate": "advancement.old_glass_photograph.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "glass_plate"
+    ]
+  ]
+}
