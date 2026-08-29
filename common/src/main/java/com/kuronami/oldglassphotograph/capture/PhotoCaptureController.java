@@ -3,9 +3,10 @@ package com.kuronami.oldglassphotograph.capture;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlock;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlockEntity;
 import com.kuronami.oldglassphotograph.component.LatentImage;
-import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
+import com.kuronami.oldglassphotograph.network.OgpNet;
 import com.kuronami.oldglassphotograph.network.PhotoCaptureAbortPayload;
 import com.kuronami.oldglassphotograph.network.PhotoMapPixelsPayload;
 import com.kuronami.oldglassphotograph.network.ShutterOpenPayload;
@@ -20,7 +21,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +109,7 @@ public final class PhotoCaptureController {
         ViewfinderReading reading = blocked != null
                 ? blocked
                 : ExposureModel.reading(ExposureModel.sampleLight(player.level(), lensPos, facing));
-        PacketDistributor.sendToPlayer(player, new ViewfinderOpenPayload(
+        OgpNet.sendToPlayer(player, new ViewfinderOpenPayload(
                 entityPos, lensPos, facing.toYRot(), 0.0F, reading));
     }
 
@@ -166,7 +166,7 @@ public final class PhotoCaptureController {
         int token = NEXT_TOKEN.getAndIncrement();
         PENDING.put(token, new Session(basePos, light));
         camera.beginCapture(token, player.getUUID());
-        PacketDistributor.sendToPlayer(player, new ShutterOpenPayload(token, window, INTERVAL_TICKS));
+        OgpNet.sendToPlayer(player, new ShutterOpenPayload(token, window, INTERVAL_TICKS));
         // 撮っている本人は client 側で先に鳴らしている（往復を待つと押した感触が遅れる）。
         // ここで鳴らすのは周りに居る player のぶん。
         player.level().playSound(player, basePos.above(),
@@ -201,7 +201,7 @@ public final class PhotoCaptureController {
 
     /** ファインダーから出してから理由を言う。覗いている間は actionbar が見えないため。 */
     private static void close(ServerPlayer player, Component reason) {
-        PacketDistributor.sendToPlayer(player, ViewfinderClosePayload.INSTANCE);
+        OgpNet.sendToPlayer(player, ViewfinderClosePayload.INSTANCE);
         player.sendSystemMessage(reason, true);
     }
 
@@ -232,11 +232,11 @@ public final class PhotoCaptureController {
         int exposure = Math.clamp(payload.exposureTicks(), 1, MAX_EXPOSURE_TICKS);
         // 明るさは露光を始めた時点の値を使う（現像時の時刻やカメラの有無に左右させない）。
         LatentImage latent = new LatentImage(payload.gray(), exposure, session.light());
-        plate.set(OgpDataComponents.LATENT_IMAGE.get(), latent);
+        plate.set(OgpComponents.latentImage(), latent);
         // 期限（wetUntil）はそのまま持ち越す。露光しても板は乾き続ける。
         PlateProcess before = GlassPlateItem.process(plate);
         long wetUntil = before == null ? 0L : before.wetUntil();
-        plate.set(OgpDataComponents.PLATE_PROCESS.get(), new PlateProcess(
+        plate.set(OgpComponents.plateProcess(), new PlateProcess(
                 PlateProcess.Stage.EXPOSED, wetUntil,
                 (int) Math.max(0, (wetUntil - player.level().getGameTime() + 19) / 20)));
         camera.setChanged();

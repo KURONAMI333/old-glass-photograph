@@ -3,7 +3,7 @@ package com.kuronami.oldglassphotograph.client.view;
 import com.kuronami.oldglassphotograph.OldGlassPhotograph;
 import com.kuronami.oldglassphotograph.capture.PhotographViewGeometry;
 import com.kuronami.oldglassphotograph.client.capture.PhotoCaptureClient;
-import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PhotoCredit;
 import com.kuronami.oldglassphotograph.item.PhotographItem;
 import com.kuronami.oldglassphotograph.item.PhotographViewRequest;
@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
@@ -24,11 +25,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.common.NeoForge;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 完成した写真をじっくり見る面（{@code MODJAM_DECISIONS_OGP.md} §32-5・承認済みの B 案）。
@@ -40,7 +37,7 @@ import net.neoforged.neoforge.common.NeoForge;
  *
  * <p>担保はフラグではなく<b>構造</b>で取る。この面は {@code Screen} を 1 つも作らず、
  * {@code Minecraft#setScreen} を 1 度も呼ばず、{@code player.input} にも一切触れない。
- * 描くのは {@code RegisterGuiLayersEvent} で足した層 1 枚だけで、これは
+ * 描くのはローダーが足した HUD レイヤ 1 枚だけで、これは
  * {@code Screen} と違って入力経路に何も割り込まない（ファインダーが覗きながら向きを
  * 変えられているのと同じ作り＝§34）。したがって移動の扱いは素のプレイと同一である。
  *
@@ -49,7 +46,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * <ul>
  *   <li>もう一度の右クリック（{@link PhotographViewRequest} 経由）</li>
  *   <li>スニーク（押し直しでだけ効く。開いた時に押されていた分は数えない）</li>
- *   <li>Esc・E・T など画面を開こうとした時（{@link ScreenEvent.Opening}）。
+ *   <li>Esc・E・T など画面を開こうとした時（{@link #onScreenOpening}）。
  *       <b>Esc のポーズ画面だけは止めて</b>、代わりにこの面を閉じる</li>
  *   <li>その手が写真でなくなった時（持ち替え・落とした・消えた）</li>
  *   <li>level / player が消えた時、ファインダーに入った時</li>
@@ -151,17 +148,9 @@ public final class PhotographViewer {
     private PhotographViewer() {
     }
 
-    public static void init(IEventBus modBus) {
-        modBus.addListener(PhotographViewer::registerGuiLayers);
-        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, PhotographViewer::onClientTick);
-        NeoForge.EVENT_BUS.addListener(ScreenEvent.Opening.class, PhotographViewer::onScreenOpening);
+    /** ローダー側の初期化が呼ぶ結線。opener を {@link PhotographViewRequest} へ渡す。 */
+    public static void init() {
         PhotographViewRequest.setOpener(PhotographViewer::toggle);
-    }
-
-    private static void registerGuiLayers(RegisterGuiLayersEvent event) {
-        event.registerAboveAll(
-                Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "photograph_view"),
-                PhotographViewer::render);
     }
 
     // ------------------------------------------------------------------ 開閉
@@ -171,7 +160,7 @@ public final class PhotographViewer {
      *
      * @return 開閉したか（false なら vanilla の使用処理へ流す）
      */
-    private static boolean toggle(InteractionHand hand) {
+    public static boolean toggle(InteractionHand hand) {
         if (useLatched) {
             // 押しっぱなしの繰り返し。1 回の押下で 1 回だけ効かせる。
             return true;
@@ -193,12 +182,17 @@ public final class PhotographViewer {
     }
 
     /** どの経路から来ても、閉じるのはここ 1 箇所。 */
-    private static void close() {
+    public static void close() {
         if (!open) {
             return;
         }
         open = false;
         play(CLOSE_SOUND, 0.6F, 0.9F);
+    }
+
+    /** 面が開いているか。ローダー側の画面開始フックと HUD レイヤが読む。 */
+    public static boolean isOpen() {
+        return open;
     }
 
     /**
@@ -214,18 +208,19 @@ public final class PhotographViewer {
      * <p>ポーズ画面でも<b>ウィンドウが非アクティブなら止めない</b>。それは Esc ではなく
      * {@code Minecraft#pauseIfInactive} が出したもので（{@code MC: net/minecraft/client/Minecraft.java:1391-1394}
      * は {@code !window.isFocused()} が条件）、止めるとシングルプレイで裏に回した時に世界が動き続ける。
+     *
+     * @return 画面を開くのを止めるべきか（ローダー側で setScreen を握り潰す）
      */
-    private static void onScreenOpening(ScreenEvent.Opening event) {
+    public static boolean onScreenOpening(@Nullable Screen newScreen) {
         if (!open) {
-            return;
+            return false;
         }
         close();
-        if (event.getNewScreen() instanceof PauseScreen && Minecraft.getInstance().isWindowActive()) {
-            event.setCanceled(true);
-        }
+        return newScreen instanceof PauseScreen && Minecraft.getInstance().isWindowActive();
     }
 
-    private static void onClientTick(ClientTickEvent.Post event) {
+    /** 每 tick。ローダーの client tick 終端から呼ぶ。 */
+    public static void endClientTick() {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (!mc.options.keyUse.isDown()) {
@@ -262,7 +257,7 @@ public final class PhotographViewer {
 
     // ------------------------------------------------------------------ 描画
 
-    private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+    public static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         if (!open) {
             return;
         }
@@ -283,7 +278,7 @@ public final class PhotographViewer {
             return;
         }
 
-        PhotoCredit credit = stack.get(OgpDataComponents.PHOTO_CREDIT.get());
+        PhotoCredit credit = stack.get(OgpComponents.photoCredit());
         PhotographViewGeometry.Layout layout = PhotographViewGeometry.layout(
                 target.width, target.height, mc.getWindow().getGuiScale(), credit != null);
 

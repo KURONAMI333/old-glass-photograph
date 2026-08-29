@@ -1,7 +1,7 @@
 package com.kuronami.oldglassphotograph.block;
 
-import com.kuronami.oldglassphotograph.OgpRegistry;
-import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.OgpObjects;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
  * 蓋を閉じている限り中は暗室で、部屋の明るさは工程に一切効かない。
  *
  * <p>工程中に蓋を開けても<b>失敗は増えない</b>。板も潜像も失われず工程は進み続け、
- * 代わりに開けていた tick 数が「かぶり」として板へ溜まる（{@link OgpDataComponents#PLATE_FOG}）。
+ * 代わりに開けていた tick 数が「かぶり」として板へ溜まる（{@link OgpComponents#plateFog()}）。
  * かぶりは現像の痕跡を濃くする（{@code capture.PhotoDeveloper}）。
  */
 public class DarkroomTableBlockEntity extends BlockEntity {
@@ -58,7 +58,7 @@ public class DarkroomTableBlockEntity extends BlockEntity {
     private int fogTicks;
 
     public DarkroomTableBlockEntity(BlockPos pos, BlockState state) {
-        super(OgpRegistry.DARKROOM_TABLE_BLOCK_ENTITY.get(), pos, state);
+        super(OgpObjects.darkroomTableBlockEntity(), pos, state);
     }
 
     public ItemStack getPlate() {
@@ -157,8 +157,8 @@ public class DarkroomTableBlockEntity extends BlockEntity {
         table.step = null;
         table.workTicks = 0;
         if (table.fogTicks > 0) {
-            int before = table.plate.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0);
-            table.plate.set(OgpDataComponents.PLATE_FOG.get(), before + table.fogTicks);
+            int before = table.plate.getOrDefault(OgpComponents.plateFog(), 0);
+            table.plate.set(OgpComponents.plateFog(), before + table.fogTicks);
             table.fogTicks = 0;
         }
         GlassPlateItem.applyDarkroomResult(table.plate, finished, level.getGameTime());
@@ -209,8 +209,8 @@ public class DarkroomTableBlockEntity extends BlockEntity {
     public void preRemoveSideEffects(BlockPos pos, BlockState state) {
         if (hasPlate() && this.level != null) {
             if (fogTicks > 0) {
-                int before = plate.getOrDefault(OgpDataComponents.PLATE_FOG.get(), 0);
-                plate.set(OgpDataComponents.PLATE_FOG.get(), before + fogTicks);
+                int before = plate.getOrDefault(OgpComponents.plateFog(), 0);
+                plate.set(OgpComponents.plateFog(), before + fogTicks);
                 fogTicks = 0;
             }
             Containers.dropItemStack(this.level, pos.getX(), pos.getY(), pos.getZ(), plate);

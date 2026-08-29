@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kuronami.oldglassphotograph.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "DispatcherAccessor",
+    "ServerPlayerMixin"
+  ],
+  "client": [
+    "CameraMixin",
+    "ItemInHandRendererMixin",
+    "MinecraftInteractionMixin",
+    "GuiSetScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

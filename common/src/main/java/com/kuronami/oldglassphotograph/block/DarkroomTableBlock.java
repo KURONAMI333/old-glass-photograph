@@ -1,6 +1,6 @@
 package com.kuronami.oldglassphotograph.block;
 
-import com.kuronami.oldglassphotograph.OgpRegistry;
+import com.kuronami.oldglassphotograph.OgpObjects;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import com.mojang.serialization.MapCodec;
@@ -155,7 +155,7 @@ public class DarkroomTableBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return null;
         }
-        return createTickerHelper(type, OgpRegistry.DARKROOM_TABLE_BLOCK_ENTITY.get(),
+        return createTickerHelper(type, OgpObjects.darkroomTableBlockEntity(),
                 DarkroomTableBlockEntity::serverTick);
     }
 
@@ -171,7 +171,7 @@ public class DarkroomTableBlock extends BaseEntityBlock {
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hit) {
-        if (!stack.is(OgpRegistry.GLASS_PLATE.get())) {
+        if (!stack.is(OgpObjects.glassPlate())) {
             // 板以外を持っている時は素手と同じ扱いへ落とす。<b>薬品を持って蓋を閉じる経路
             // （§32-1）はここを通る</b>ので、薬品だけを別扱いにしてはいけない。
             return InteractionResult.TRY_WITH_EMPTY_HAND;
@@ -303,7 +303,7 @@ public class DarkroomTableBlock extends BaseEntityBlock {
      */
     static void syncContent(Level level, BlockPos pos, ItemStack plate) {
         BlockState current = level.getBlockState(pos);
-        if (!current.is(OgpRegistry.DARKROOM_TABLE.get())) {
+        if (!current.is(OgpObjects.darkroomTable())) {
             return;
         }
         Content content = contentOf(plate);

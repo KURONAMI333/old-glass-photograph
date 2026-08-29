@@ -4,7 +4,8 @@ import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
@@ -13,8 +14,6 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
-import net.neoforged.neoforge.client.event.RenderHandEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * 板を左腕で振っている間だけ、刷毛の姿勢を<b>右腕の鏡像</b>に差し替える。
@@ -54,42 +53,44 @@ public final class PlateHandRenderer {
     private PlateHandRenderer() {
     }
 
-    public static void init() {
-        NeoForge.EVENT_BUS.addListener(PlateHandRenderer::onRenderHand);
-    }
-
-    private static void onRenderHand(RenderHandEvent event) {
-        ItemStack stack = event.getItemStack();
+    /**
+     * 板の一人称描画を引き受ける。引き受けた caller は vanilla の該当手の描画を飛ばすこと。
+     *
+     * <p>引数は {@code ItemInHandRenderer.submitArmWithItem} の呼び出し側で確定する値で、
+     * NeoForge {@code RenderHandEvent} の getter と一対一に対応する。
+     *
+     * @return 描画を引き受けたか（true なら vanilla の経路は cancel 済みとして扱う）
+     */
+    public static boolean trySubmit(AbstractClientPlayer player, float partialTick, float interpolatedPitch,
+                                    InteractionHand hand, float swingProgress, ItemStack stack, float equipProgress,
+                                    PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
         if (!(stack.getItem() instanceof GlassPlateItem)) {
-            return;
+            return false;
         }
         Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
         if (player == null || player.isScoping()) {
-            return;
+            return false;
         }
-        HumanoidArm arm = event.getHand() == InteractionHand.MAIN_HAND
+        HumanoidArm arm = hand == InteractionHand.MAIN_HAND
                 ? player.getMainArm()
                 : player.getMainArm().getOpposite();
         if (arm != HumanoidArm.LEFT) {
             // 右腕は vanilla の式で正しい。触らない。
-            return;
+            return false;
         }
         if (!player.isUsingItem()
-                || player.getUsedItemHand() != event.getHand()
+                || player.getUsedItemHand() != hand
                 || player.getUseItemRemainingTicks() <= 0
                 || stack.getUseAnimation() != ItemUseAnimation.BRUSH) {
             // 振っていない板はふつうの持ち方。vanilla に任せる。
-            return;
+            return false;
         }
-        event.setCanceled(true);
 
-        float frameInterp = event.getPartialTick();
-        PoseStack poseStack = event.getPoseStack();
+        float frameInterp = partialTick;
         poseStack.pushPose();
 
         // applyItemArmTransform（同 :330-333）。左腕なので invert = -1。
-        poseStack.translate(-0.56F, -0.52F + event.getEquipProgress() * -0.6F, -0.72F);
+        poseStack.translate(-0.56F, -0.52F + equipProgress * -0.6F, -0.72F);
 
         // applyBrushTransform の右腕の式を x 軸で鏡映したもの。
         // translate は x だけ符号を反転し、XP はそのまま・YP は符号を反転する。
@@ -102,9 +103,10 @@ public final class PlateHandRenderer {
         ItemDisplayContext context = ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
         minecraft.getItemModelResolver().updateForTopItem(
                 renderState, stack, context, player.level(), player, player.getId() + context.ordinal());
-        renderState.submit(poseStack, event.getSubmitNodeCollector(), event.getPackedLight(),
+        renderState.submit(poseStack, collector, packedLight,
                 OverlayTexture.NO_OVERLAY, 0);
         poseStack.popPose();
+        return true;
     }
 
     /** 振りの角度。vanilla の {@code applyBrushTransform}（同 {@code :296-305}）と同じ式。 */

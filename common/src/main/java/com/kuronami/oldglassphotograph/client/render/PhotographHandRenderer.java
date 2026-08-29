@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -22,8 +21,6 @@ import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-import net.neoforged.neoforge.client.event.RenderHandEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * 一人称の手持ちを横取りして、写真を<b>地図と同じ構えで正面に</b>掲げる。
@@ -38,9 +35,9 @@ import net.neoforged.neoforge.common.NeoForge;
  *
  * <p>{@code IClientItemExtensions#applyForgeHandTransform} はこの分岐より後の {@code else} 側
  * にしか無く、map id を持つ stack には届かない。分岐そのものを迂回できる正規の入口は
- * {@code ClientHooks#renderSpecificFirstPersonHand} が投げる {@link RenderHandEvent} で、
- * これは手ごとに、分岐より前に来る
- * （NeoForge patched {@code ItemInHandRenderer.java:348}（主手） / {@code :367}（オフハンド））。
+ * 一人称の手ごとの描画（{@code ItemInHandRenderer.submitArmWithItem} の冒頭）で、
+ * NeoForge はここで {@code RenderHandEvent} を発火する。Fabric に等価イベントは無いため、
+ * 同一位置へ client mixin で割り込み、{@link #trySubmit} を呼んで挙動を揃える。
  *
  * <h2>姿勢</h2>
  *
@@ -70,46 +67,45 @@ public final class PhotographHandRenderer {
     private PhotographHandRenderer() {
     }
 
-    public static void init() {
-        NeoForge.EVENT_BUS.addListener(PhotographHandRenderer::onRenderHand);
-    }
-
-    private static void onRenderHand(RenderHandEvent event) {
-        ItemStack stack = event.getItemStack();
+    /**
+     * 写真の一人称描画を引き受ける。引き受けた caller は vanilla の該当手の描画を飛ばすこと。
+     *
+     * <p>引数は {@code ItemInHandRenderer.submitArmWithItem} の呼び出し側で確定する値で、
+     * NeoForge {@code RenderHandEvent} の getter と一対一に対応する
+     * （swingProgress = attack / equipProgress = inverseArmHeight / interpolatedPitch = xRot）。
+     *
+     * @return 描画を引き受けたか（true なら vanilla の経路は cancel 済みとして扱う）
+     */
+    public static boolean trySubmit(AbstractClientPlayer player, float partialTick, float interpolatedPitch,
+                                    InteractionHand hand, float swingProgress, ItemStack stack, float equipProgress,
+                                    PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
         if (!(stack.getItem() instanceof PhotographItem)) {
-            return;
+            return false;
         }
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
         if (player == null) {
-            return;
+            return false;
         }
-        // ここから先は vanilla の代わりを務めるので、描かない場合も必ず cancel する。
-        event.setCanceled(true);
+        // ここから先は vanilla の代わりを務めるので、描かない場合も必ず引き返らない。
         if (player.isScoping()) {
             // vanilla の同じ判定は迂回した先（同 :428）にあるので、こちらで持つ。
-            return;
+            return true;
         }
 
-        boolean mainHand = event.getHand() == InteractionHand.MAIN_HAND;
-        PoseStack poseStack = event.getPoseStack();
-        SubmitNodeCollector collector = event.getSubmitNodeCollector();
-        int light = event.getPackedLight();
-        // RenderHandEvent の getter 名は vanilla の引数名と揃っていない。
-        // ClientHooks:255-256 の呼び出し（ItemInHandRenderer:348 / :367）では
-        // swingProgress = attack、equipProgress = inverseArmHeight、interpolatedPitch = xRot。
-        float attack = event.getSwingProgress();
-        float inverseArmHeight = event.getEquipProgress();
+        boolean mainHand = hand == InteractionHand.MAIN_HAND;
+        int light = packedLight;
+        float attack = swingProgress;
+        float inverseArmHeight = equipProgress;
 
         poseStack.pushPose();
         if (mainHand && player.getOffhandItem().isEmpty()) {
-            twoHanded(poseStack, collector, light, event.getInterpolatedPitch(), inverseArmHeight,
+            twoHanded(poseStack, collector, light, interpolatedPitch, inverseArmHeight,
                     attack, player, stack);
         } else {
             HumanoidArm arm = mainHand ? player.getMainArm() : player.getMainArm().getOpposite();
             oneHanded(poseStack, collector, light, inverseArmHeight, arm, attack, player, stack);
         }
         poseStack.popPose();
+        return true;
     }
 
     // ------------------------------------------------------------------ 姿勢
@@ -123,7 +119,7 @@ public final class PhotographHandRenderer {
      */
     private static void twoHanded(PoseStack poseStack, SubmitNodeCollector collector, int light,
                                   float xRot, float inverseArmHeight, float attack,
-                                  LocalPlayer player, ItemStack stack) {
+                                  AbstractClientPlayer player, ItemStack stack) {
         float sqrtAttack = Mth.sqrt(attack);
         float ySwing = -0.2F * Mth.sin(attack * (float) Math.PI);
         float zSwing = -0.4F * Mth.sin(sqrtAttack * (float) Math.PI);
@@ -154,7 +150,7 @@ public final class PhotographHandRenderer {
      */
     private static void oneHanded(PoseStack poseStack, SubmitNodeCollector collector, int light,
                                   float inverseArmHeight, HumanoidArm arm, float attack,
-                                  LocalPlayer player, ItemStack stack) {
+                                  AbstractClientPlayer player, ItemStack stack) {
         float invert = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
         poseStack.translate(invert * 0.125F, -0.125F, 0.0F);
         if (!player.isInvisible()) {
@@ -186,7 +182,7 @@ public final class PhotographHandRenderer {
 
     /** 板を支える手。{@code ItemInHandRenderer#renderMapHand} の写し（同 {@code :149-169}）。 */
     private static void hand(PoseStack poseStack, SubmitNodeCollector collector, int light,
-                             LocalPlayer player, HumanoidArm arm) {
+                             AbstractClientPlayer player, HumanoidArm arm) {
         AvatarRenderer<AbstractClientPlayer> renderer =
                 Minecraft.getInstance().getEntityRenderDispatcher().getPlayerRenderer(player);
         poseStack.pushPose();
@@ -208,7 +204,7 @@ public final class PhotographHandRenderer {
 
     /** 片手持ちの腕。{@code ItemInHandRenderer#renderPlayerArm} の写し（同 {@code :249-277}）。 */
     private static void arm(PoseStack poseStack, SubmitNodeCollector collector, int light,
-                            float inverseArmHeight, float attack, HumanoidArm arm, LocalPlayer player) {
+                            float inverseArmHeight, float attack, HumanoidArm arm, AbstractClientPlayer player) {
         AvatarRenderer<AbstractClientPlayer> renderer =
                 Minecraft.getInstance().getEntityRenderDispatcher().getPlayerRenderer(player);
         boolean right = arm == HumanoidArm.RIGHT;

@@ -1,7 +1,7 @@
 package com.kuronami.oldglassphotograph.client;
 
 import com.kuronami.oldglassphotograph.OldGlassPhotograph;
-import com.kuronami.oldglassphotograph.component.OgpDataComponents;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -11,13 +11,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.event.RegisterSelectItemModelPropertyEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Glass Plate の {@code minecraft:select} 用カスタム property。
  *
- * <p>{@link PlateProcess} 全体を {@code minecraft:component} で照合しようとすると、
+ * <p>{@code PlateProcess} 全体を {@code minecraft:component} で照合しようとすると、
  * CODEC が {@code wet_until}（絶対 game tick）/ {@code seconds_left}（毎秒書き換わる）を
  * 含むため固定リテラルの {@code when} と一致しない
  * （{@code MODJAM_DECISIONS_OGP.md} §24）。ここでは {@link PlateProcess#stage()} だけを取り出す。
@@ -42,7 +41,7 @@ public record PlateStageProperty() implements SelectItemModelProperty<PlateProce
     @Override
     public PlateProcess.@Nullable Stage get(
             ItemStack itemStack, @Nullable ClientLevel level, @Nullable LivingEntity owner, int seed, ItemDisplayContext displayContext) {
-        PlateProcess process = itemStack.get(OgpDataComponents.PLATE_PROCESS.get());
+        PlateProcess process = itemStack.get(OgpComponents.plateProcess());
         return process == null ? null : process.stage();
     }
 
@@ -56,8 +55,8 @@ public record PlateStageProperty() implements SelectItemModelProperty<PlateProce
         return VALUE_CODEC;
     }
 
-    /** {@code RegisterSelectItemModelPropertyEvent}（mod bus）で {@code old_glass_photograph:plate_stage} を登録する。 */
-    public static void register(RegisterSelectItemModelPropertyEvent event) {
-        event.register(Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "plate_stage"), TYPE);
+    /** 登録先 id。NeoForge はイベント、Fabric は vanilla {@code SelectItemModelProperties.ID_MAPPER} へ直接 put。 */
+    public static Identifier id() {
+        return Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "plate_stage");
     }
 }

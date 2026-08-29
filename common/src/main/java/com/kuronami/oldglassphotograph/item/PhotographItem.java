@@ -29,20 +29,14 @@ public final class PhotographItem extends MapItem {
         super(properties);
     }
 
+    // 注: NeoForge 版には getCustomMapData(ItemStack, Level) の override があった（super 委譲のみの
+    // 実質 no-op）。このメソッドは NeoForge が MapItem へ足している patch メソッドで vanilla には無いので、
+    // common（vanilla classpath）では削除した。写真の map data の引き当ては vanilla の
+    // MapItem.getSavedData(ItemStack, Level)（MAP_ID component 経由）で成立する。
+
     @Override
     public Component getName(ItemStack stack) {
         return Component.translatable("item.old_glass_photograph.photograph");
-    }
-
-    @Override
-    protected MapItemSavedData getCustomMapData(ItemStack stack, Level level) {
-        // 両側で実データを返す。client 側で null を返すと、額縁が state.mapId を立てられず
-        // （MC: net/minecraft/client/renderer/entity/ItemFrameRenderer.java:135）
-        // どの写真も同じ 16px のアイテム絵になる。
-        //
-        // 一人称の紙地図の枠は「ここを null にする」ではなく、描画側の分岐を
-        // RenderHandEvent で迂回して外している（PhotographHandRenderer 参照）。
-        return super.getCustomMapData(stack, level);
     }
 
     @Override
