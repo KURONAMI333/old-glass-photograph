@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "minecraft:iron_nugget",
+    "#minecraft:coals",
+    "minecraft:glass_bottle"
+  ],
+  "result": {
+    "count": 8,
+    "id": "old_glass_photograph:developer"
+  }
+}
