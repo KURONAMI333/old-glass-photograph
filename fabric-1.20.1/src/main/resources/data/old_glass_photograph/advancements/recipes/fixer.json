@@ -1,0 +1,47 @@
+{
+  "criteria": {
+    "has_dried_kelp": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "minecraft:dried_kelp"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_sulfur": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "minecraft:sulfur"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "old_glass_photograph:fixer"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "parent": "minecraft:recipes/root",
+  "requirements": [
+    [
+      "has_dried_kelp",
+      "has_sulfur",
+      "has_the_recipe"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "old_glass_photograph:fixer"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "criteria": {
+    "plate_in_box": {
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:location_check",
+            "predicate": {
+              "block": {
+                "blocks": "old_glass_photograph:darkroom_table",
+                "state": {
+                  "open": "true"
+                }
+              }
+            }
+          },
+          {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": "old_glass_photograph:glass_plate"
+            }
+          }
+        ]
+      },
+      "trigger": "minecraft:item_used_on_block"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.lights_out.description"
+    },
+    "icon": {
+      "item": "old_glass_photograph:darkroom_table"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.lights_out.title"
+    }
+  },
+  "parent": "old_glass_photograph:root",
+  "requirements": [
+    [
+      "plate_in_box"
+    ]
+  ]
+}

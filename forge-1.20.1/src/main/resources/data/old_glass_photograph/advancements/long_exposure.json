@@ -1,0 +1,25 @@
+{
+  "criteria": {
+    "long_exposure": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.long_exposure.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "item": "minecraft:lantern"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.long_exposure.title"
+    }
+  },
+  "parent": "old_glass_photograph:hold_still",
+  "requirements": [
+    [
+      "long_exposure"
+    ]
+  ]
+}

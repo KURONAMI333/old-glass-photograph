@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "W": {
+      "item": "minecraft:black_wool"
+    },
+    "P": {
+      "tag": "minecraft:planks"
+    },
+    "B": {
+      "item": "minecraft:bucket"
+    }
+  },
+  "pattern": [
+    "WWW",
+    "PBP",
+    "PPP"
+  ],
+  "result": {
+    "item": "old_glass_photograph:darkroom_table"
+  }
+}
