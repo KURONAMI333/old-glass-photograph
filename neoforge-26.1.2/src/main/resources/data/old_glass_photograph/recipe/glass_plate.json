@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "minecraft:glass_pane"
+  ],
+  "result": {
+    "id": "old_glass_photograph:glass_plate"
+  }
+}
