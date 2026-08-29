@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    [
+      {
+        "item": "minecraft:dried_kelp"
+      },
+      {
+        "item": "minecraft:sulfur"
+      }
+    ],
+    {
+      "item": "minecraft:glass_bottle"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "item": "old_glass_photograph:fixer"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "criteria": {
+    "photograph": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "old_glass_photograph:photograph"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.hold_still.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "item": "old_glass_photograph:fixer"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.hold_still.title"
+    }
+  },
+  "parent": "old_glass_photograph:behind_the_lens",
+  "requirements": [
+    [
+      "photograph"
+    ]
+  ]
+}

@@ -1,0 +1,77 @@
+plugins {
+    id 'fabric-loom' version '1.10-SNAPSHOT'
+}
+
+version = project.version
+group = project.group
+
+base {
+    archivesName = "${mod_id}-fabric-${minecraft_version}"
+}
+
+repositories {
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+        content { includeGroup "maven.modrinth" }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+
+    // Jade tooltip（カメラ・暗室台の状態表示）。compileOnly = soft-dep。
+    // 本体 jar には同梱されず、Jade 無し環境ではクラスがロードされる経路が無い。
+    // version id ahavHbAT = 11.13.3+fabric（#38 evidence JSON からの機械抽出）。
+    modCompileOnly "maven.modrinth:nvQzSEkH:${jade_version_id}"
+}
+
+processResources {
+    var expandProps = [
+            'version'        : version,
+            'mod_name'       : mod_name,
+            'mod_author'     : mod_author,
+            'mod_id'         : mod_id,
+            'license'        : mod_license,
+            'description'    : project.description,
+    ]
+    filesMatching(['pack.mcmeta', 'fabric.mod.json']) {
+        expand expandProps
+    }
+    inputs.properties(expandProps)
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = 17
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_name,
+                'Specification-Vendor'  : mod_author,
+                'Specification-Version' : project.jar.archiveVersion,
+                'Implementation-Title'  : project.name,
+                'Implementation-Version': project.jar.archiveVersion,
+                'Implementation-Vendor' : mod_author,
+                'Built-On-Minecraft'    : minecraft_version
+        ])
+    }
+
+    // LICENSE は repo root にのみ置く。cell は独立 build なので ../ 相対で参照し、
+    // inputs.file() で不在時に build を落とす（PORTING_CHECKLIST §13 —
+    // from() は黙って no-op するためガードが要る）。
+    def licenseFile = file('../LICENSE')
+    def licenseRenamed = "LICENSE_${mod_name}"
+    inputs.file(licenseFile)
+    from(licenseFile) { rename { licenseRenamed } }
+}

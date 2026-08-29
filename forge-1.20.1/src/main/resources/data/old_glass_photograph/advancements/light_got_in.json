@@ -1,0 +1,25 @@
+{
+  "criteria": {
+    "light_got_in": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.light_got_in.description"
+    },
+    "hidden": true,
+    "icon": {
+      "item": "minecraft:torch"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.light_got_in.title"
+    }
+  },
+  "parent": "old_glass_photograph:hold_still",
+  "requirements": [
+    [
+      "light_got_in"
+    ]
+  ]
+}

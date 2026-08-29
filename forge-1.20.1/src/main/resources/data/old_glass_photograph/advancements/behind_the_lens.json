@@ -1,0 +1,42 @@
+{
+  "criteria": {
+    "plate_in_camera": {
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:location_check",
+            "predicate": {
+              "block": {
+                "blocks": "old_glass_photograph:wet_plate_camera"
+              }
+            }
+          },
+          {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": "old_glass_photograph:glass_plate"
+            }
+          }
+        ]
+      },
+      "trigger": "minecraft:item_used_on_block"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancement.old_glass_photograph.behind_the_lens.description"
+    },
+    "icon": {
+      "item": "old_glass_photograph:wet_plate_camera"
+    },
+    "title": {
+      "translate": "advancement.old_glass_photograph.behind_the_lens.title"
+    }
+  },
+  "parent": "old_glass_photograph:lights_out",
+  "requirements": [
+    [
+      "plate_in_camera"
+    ]
+  ]
+}
