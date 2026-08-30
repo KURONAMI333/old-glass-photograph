@@ -3,6 +3,7 @@ package com.kuronami.oldglassphotograph.client.view;
 import com.kuronami.oldglassphotograph.OldGlassPhotograph;
 import com.kuronami.oldglassphotograph.capture.PhotographViewGeometry;
 import com.kuronami.oldglassphotograph.client.capture.PhotoCaptureClient;
+import com.kuronami.oldglassphotograph.client.render.PhotoTextures;
 import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PhotoCredit;
 import com.kuronami.oldglassphotograph.item.PhotographItem;
@@ -328,14 +329,8 @@ public final class PhotographViewer {
         // 写真そのもの。map の動的テクスチャは NEAREST で貼られる
         // （MC: net/minecraft/client/renderer/texture/DynamicTexture.java:41）ので、
         // 整数倍ならドットは滲まない。
-        Identifier texture = BLANK;
-        MapId id = stack.get(DataComponents.MAP_ID);
-        if (id != null) {
-            MapItemSavedData data = level.getMapData(id);
-            if (data != null) {
-                texture = Minecraft.getInstance().getMapTextureManager().prepareMapTexture(id, data);
-            }
-        }
+        Identifier resolved = PhotoTextures.resolve(stack);
+        Identifier texture = resolved == null ? BLANK : resolved;
         graphics.blit(texture,
                 layout.photoX(), layout.photoY(),
                 layout.photoX() + layout.photoSize(), layout.photoY() + layout.photoSize(),

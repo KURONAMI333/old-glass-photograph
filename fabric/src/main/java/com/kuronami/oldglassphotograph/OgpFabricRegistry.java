@@ -7,6 +7,7 @@ import com.kuronami.oldglassphotograph.block.WetPlateCameraBlockEntity;
 import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PhotoCredit;
+import com.kuronami.oldglassphotograph.component.PhotoImage;
 import com.kuronami.oldglassphotograph.component.PlateProcess;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import com.kuronami.oldglassphotograph.item.PhotographItem;
@@ -114,6 +115,12 @@ public final class OgpFabricRegistry {
                     .networkSynchronized(ByteBufCodecs.VAR_INT)
                     .build());
 
+    public static final DataComponentType<PhotoImage> PHOTO_IMAGE = register(
+            Registries.DATA_COMPONENT_TYPE, "photo_image",
+            DataComponentType.<PhotoImage>builder()
+                    .persistent(PhotoImage.CODEC)
+                    .build());
+
     public static final DataComponentType<PhotoCredit> PHOTO_CREDIT = register(
             Registries.DATA_COMPONENT_TYPE, "photo_credit",
             DataComponentType.<PhotoCredit>builder()
@@ -130,7 +137,8 @@ public final class OgpFabricRegistry {
                 () -> WET_PLATE_CAMERA, () -> DARKROOM_TABLE,
                 () -> GLASS_PLATE, () -> PHOTOGRAPH,
                 () -> COLLODION_KIT, () -> DEVELOPER, () -> FIXER);
-        OgpComponents.wire(() -> LATENT_IMAGE, () -> PLATE_PROCESS, () -> PLATE_FOG, () -> PHOTO_CREDIT);
+        OgpComponents.wire(() -> LATENT_IMAGE, () -> PLATE_PROCESS, () -> PLATE_FOG,
+                () -> PHOTO_CREDIT, () -> PHOTO_IMAGE);
     }
 
     /** NeoForge の DeferredRegister.Blocks.registerBlock 相当（id を Properties へ set する）。 */

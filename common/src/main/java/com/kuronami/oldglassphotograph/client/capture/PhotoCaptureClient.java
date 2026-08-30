@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>露光は 1 枚の撮影ではなく、窓のあいだの複数フレームの輝度平均。</b>
  * 実物の湿板写真で動体が消えるのは露光中の光を平均するからで、同じ原理をそのまま置いている。
- * 各フレームは撮った直後に 128x128 gray へ落としてから累積する（フル解像度で累積しない）。
+ * 各フレームは撮った直後に {@link LatentImage#DIM} 角の gray へ落としてから累積する（フル解像度で累積しない）。
  * 量子化は server 側の現像で 1 回だけ行う。
  *
  * <p>撮影点はレンダーのレベル描画の終端。この時点の mainRenderTarget には
@@ -880,22 +880,22 @@ public final class PhotoCaptureClient {
     }
 
     /**
-     * 生フレーム -&gt; 中央正方形クロップ -&gt; 128x128 -&gt; 8bit gray を SUM へ加算。
+     * 生フレーム -&gt; 中央正方形クロップ -&gt; {@link LatentImage#DIM} 角 -&gt; 8bit gray を SUM へ加算。
      *
      * <p>切り出しは {@link ViewfinderGeometry#crop} が決める。ファインダーの開口も同じ関数から
      * 出るので、<b>覗いた構図と撮れる構図が食い違う経路が無い</b>。
      */
     private static void accumulate(NativeImage img) throws Exception {
         ViewfinderGeometry.Square c = ViewfinderGeometry.crop(img.getWidth(), img.getHeight());
-        try (NativeImage small = new NativeImage(128, 128, false)) {
+        try (NativeImage small = new NativeImage(LatentImage.DIM, LatentImage.DIM, false)) {
             img.resizeSubRectTo(c.x(), c.y(), c.side(), c.side(), small);
-            for (int y = 0; y < 128; y++) {
-                for (int x = 0; x < 128; x++) {
+            for (int y = 0; y < LatentImage.DIM; y++) {
+                for (int x = 0; x < LatentImage.DIM; x++) {
                     int argb = small.getPixel(x, y);
                     int r = (argb >> 16) & 0xFF;
                     int g = (argb >> 8) & 0xFF;
                     int b = argb & 0xFF;
-                    SUM[x + y * 128] += (r * 299 + g * 587 + b * 114) / 1000;
+                    SUM[x + y * LatentImage.DIM] += (r * 299 + g * 587 + b * 114) / 1000;
                 }
             }
         }
