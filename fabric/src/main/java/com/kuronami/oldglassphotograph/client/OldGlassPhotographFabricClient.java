@@ -37,10 +37,8 @@ public final class OldGlassPhotographFabricClient implements ClientModInitialize
         ClientPlayNetworking.registerGlobalReceiver(ViewfinderClosePayload.TYPE, (payload, context) ->
                 context.client().execute(PhotoCaptureClient::closeViewfinder));
 
-        // HUD レイヤ。registerAboveAll 相当は最後尾へ足す（HudElement は GuiGraphicsExtractor を受ける）。
-        HudElementRegistry.addLast(
-                Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "viewfinder"),
-                PhotoCaptureClient::renderViewfinder);
+        // HUD レイヤ。HudElement は GuiGraphicsExtractor を受ける。
+        // ファインダーの面はここに置けない（覗きの間は HUD ごと消えるため）。GuiViewfinderMixin が描く。
         HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath(OldGlassPhotograph.MODID, "photograph_view"),
                 PhotographViewer::render);
