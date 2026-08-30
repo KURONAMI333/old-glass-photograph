@@ -1,9 +1,8 @@
 {
   "itemGroup.old_glass_photograph": "Old Glass Photograph",
-
   "block.old_glass_photograph.wet_plate_camera": "Wet Plate Camera",
+  "block.old_glass_photograph.creative_camera": "Creative Camera",
   "block.old_glass_photograph.darkroom_table": "Darkroom Table",
-
   "item.old_glass_photograph.glass_plate": "Glass Plate",
   "item.old_glass_photograph.glass_plate.wet": "Wet Plate (%ss)",
   "item.old_glass_photograph.glass_plate.exposed": "Exposed Plate (%ss)",
@@ -12,11 +11,9 @@
   "item.old_glass_photograph.collodion_kit": "Collodion Kit",
   "item.old_glass_photograph.developer": "Developer",
   "item.old_glass_photograph.fixer": "Fixer",
-
   "chemical.old_glass_photograph.collodion_kit": "a Collodion Kit",
   "chemical.old_glass_photograph.developer": "Developer",
   "chemical.old_glass_photograph.fixer": "Fixer",
-
   "tooltip.old_glass_photograph.plate.blank": "Coat it in a Darkroom Table. Close the lid holding a Collodion Kit.",
   "tooltip.old_glass_photograph.plate.wet": "Wet. Load it into a Wet Plate Camera, then shoot from behind it.",
   "tooltip.old_glass_photograph.plate.exposed": "Latent image. Develop it in a Darkroom Table. Close the lid holding Developer.",
@@ -25,17 +22,14 @@
   "tooltip.old_glass_photograph.plate.fogged": "Fogged by light",
   "tooltip.old_glass_photograph.camera.facing": "The lens points the way you are facing when you place it.",
   "tooltip.old_glass_photograph.camera.stand_behind": "Stand close behind it and right-click to look through it.",
-
   "jade.old_glass_photograph.camera.empty": "No plate loaded",
   "jade.old_glass_photograph.camera.plate": "Plate: %s",
   "jade.old_glass_photograph.darkroom.empty": "No plate inside",
   "jade.old_glass_photograph.darkroom.plate": "Plate: %s",
   "jade.old_glass_photograph.darkroom.progress": "Progress: %s%%",
-
   "view.old_glass_photograph.taken_by": "Taken by %s",
   "view.old_glass_photograph.day": "Day %s",
   "view.old_glass_photograph.captured_at": "Captured %s",
-
   "viewfinder.old_glass_photograph.bright": "Bright light. The plate takes quickly.",
   "viewfinder.old_glass_photograph.soft": "Soft light. The exposure will run longer.",
   "viewfinder.old_glass_photograph.dim": "Dim light. The exposure will run a long time.",
@@ -46,7 +40,6 @@
   "viewfinder.old_glass_photograph.dried": "The collodion dried out. Coat the plate again and reload it.",
   "viewfinder.old_glass_photograph.would_dry": "The plate would dry out mid-exposure. Load a freshly coated one.",
   "viewfinder.old_glass_photograph.shoot_hint": "%s Look around to frame the shot. Click again to open the shutter.",
-
   "message.old_glass_photograph.plate.dried": "The collodion dried out. The plate is clean again.",
   "message.old_glass_photograph.plate.washed": "Washed off in the cauldron. The plate is clean again.",
   "message.old_glass_photograph.plate.load_into_camera": "Load this plate into a Wet Plate Camera and expose it.",
@@ -54,7 +47,6 @@
   "message.old_glass_photograph.plate.need_chemical": "Hold %s in your other hand.",
   "message.old_glass_photograph.plate.fixed": "Fixed. The photograph is finished.",
   "message.old_glass_photograph.plate.blank": "The plate is blank.",
-
   "message.old_glass_photograph.darkroom.lid_shut": "The lid is shut. Right-click with an empty hand to open the box.",
   "message.old_glass_photograph.darkroom.working": "The box is working on a plate.",
   "message.old_glass_photograph.darkroom.occupied": "A plate is already inside.",
@@ -66,7 +58,6 @@
   "message.old_glass_photograph.darkroom.dried_inside": "The collodion dried out inside the box. The plate is clean again.",
   "message.old_glass_photograph.darkroom.start_prepare": "The lid is shut. Coating and sensitizing the plate.",
   "message.old_glass_photograph.darkroom.start_develop": "The lid is shut. Developing the plate.",
-
   "message.old_glass_photograph.camera.plate_already_loaded": "A plate is already loaded.",
   "message.old_glass_photograph.camera.already_exposed": "This plate already holds a latent image. Develop it first.",
   "message.old_glass_photograph.camera.not_sensitized": "This plate is not sensitized. Coat it with a Collodion Kit first.",
@@ -78,7 +69,6 @@
   "message.old_glass_photograph.camera.too_far": "You are too far from the camera.",
   "message.old_glass_photograph.camera.exposure_in_progress": "Exposure already in progress.",
   "message.old_glass_photograph.camera.nothing_exposed": "The shutter closed before any light reached the plate. Nothing was exposed.",
-
   "message.old_glass_photograph.exposure.normal": "Exposed. The plate holds a latent image.",
   "message.old_glass_photograph.exposure.under_dark": "Underexposed. It is too dark here to fill the plate. Bring light.",
   "message.old_glass_photograph.exposure.under_short": "Underexposed. The shutter closed before the plate had gathered enough light.",
