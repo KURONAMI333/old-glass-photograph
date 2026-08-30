@@ -24,6 +24,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -34,6 +35,9 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Marker;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -603,11 +607,26 @@ public final class PhotoCaptureClient {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Component line = current.line();
-        int width = font.width(line);
+        // 開口の幅で折り返す。1 行で描くと長い読みが画面の外へ出る
+        // （実測 2026-08-31: bright + shoot_hint の 104 文字が 1920x1080 の既定スケールで左右にはみ出した）。
+        int maxWidth = Math.max(160, Math.min(open.side(), w) - 24);
+        List<Component> lines = new ArrayList<>();
+        for (FormattedText part : font.splitIgnoringLanguage(current.line(), maxWidth)) {
+            lines.add(Component.literal(part.getString()));
+        }
+        if (lines.isEmpty()) {
+            lines.add(current.line());
+        }
+        int step = font.lineHeight + 2;
         graphics.pose().pushMatrix();
         graphics.pose().translate(w / 2.0F, open.bottom() - Math.max(24, open.side() / 12.0F));
-        graphics.textWithBackdrop(font, line, -width / 2, -4, width, 0xFFFFFFFF);
+        // 最後の行が、折り返しが無かった時と同じ高さに来るように上へ積む。
+        int top = -4 - step * (lines.size() - 1);
+        for (int i = 0; i < lines.size(); i++) {
+            Component part = lines.get(i);
+            int width = font.width(part);
+            graphics.textWithBackdrop(font, part, -width / 2, top + step * i, width, 0xFFFFFFFF);
+        }
         graphics.pose().popMatrix();
     }
 
