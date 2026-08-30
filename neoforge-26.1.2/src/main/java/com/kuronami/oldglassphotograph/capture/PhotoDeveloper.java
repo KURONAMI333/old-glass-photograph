@@ -5,13 +5,12 @@ import com.kuronami.oldglassphotograph.OgpObjects;
 import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpComponents;
 import com.kuronami.oldglassphotograph.component.PhotoCredit;
+import com.kuronami.oldglassphotograph.component.PhotoImage;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.saveddata.maps.MapId;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +26,8 @@ public final class PhotoDeveloper {
 
     private static final Logger LOG = LoggerFactory.getLogger("ogp");
 
-    private static final int WIDTH = 128;
-    private static final int HEIGHT = 128;
+    private static final int WIDTH = LatentImage.DIM;
+    private static final int HEIGHT = LatentImage.DIM;
 
     /**
      * 痕跡の強さは dose（露光の充足度。1.0 で成立）が下がるほど濃くなる連続量
@@ -115,21 +114,14 @@ public final class PhotoDeveloper {
                 result.band(), result.meanLuma(), result.clippedPct(), result.crushedPct(),
                 fogTicks, traceIntensity);
 
-        byte[] packed = PhotoMapPalette.quantizeAll(traced);
-        MapItemSavedData fresh = MapItemSavedData.createFresh(
-                player.getX(), player.getZ(), (byte) 0, false, false, level.dimension());
-        for (int y = 0; y < 128; y++) {
-            for (int x = 0; x < 128; x++) {
-                fresh.setColor(x, y, packed[x + y * 128]);
-            }
-        }
-        // 色を書いた後に locked() を呼ぶ（先に呼ぶと空の複製になる）
-        MapItemSavedData locked = fresh.locked();
-        MapId id = level.getFreeMapId();
-        level.setMapData(id, locked);
+        // 階調は地図と同じ階段に丸めるが、保存は自前のコンポーネント（PhotoImage）に持つ。
+        // 地図データは 128x128 固定で、拡大した時の粗さがそのまま上限になっていた
+        // （2026-08-31 kura 判定「ドットが粗すぎる」）。
+        byte[] gray = PhotoMapPalette.quantizeAllToGray(traced);
+        long imageId = level.getGameTime() * 1000L + level.getRandom().nextInt(1000);
 
         ItemStack photo = new ItemStack(OgpObjects.photograph());
-        photo.set(DataComponents.MAP_ID, id);
+        photo.set(OgpComponents.photoImage(), new PhotoImage(imageId, gray));
         // 撮影者と日付。ここが唯一の書き込み口で、以後この写真では変わらない。
         photo.set(OgpComponents.photoCredit(),
                 new PhotoCredit(player.getGameProfile().name(), PhotoCredit.dayOf(level.getGameTime()),
@@ -140,7 +132,8 @@ public final class PhotoDeveloper {
             player.drop(photo, false);
         }
         awardMilestones(player, result, fogTicks);
-        LOG.info("[ogp] developed photograph mapId={} steps={}", id, PhotoMapPalette.stepCount());
+        LOG.info("[ogp] developed photograph imageId={} dim={} steps={}",
+                imageId, LatentImage.DIM, PhotoMapPalette.stepCount());
         return true;
     }
 

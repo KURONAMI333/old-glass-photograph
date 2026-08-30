@@ -1,6 +1,7 @@
 package com.kuronami.oldglassphotograph.component;
 
 import com.kuronami.oldglassphotograph.capture.ExposureModel;
+import com.kuronami.oldglassphotograph.capture.PhotographViewGeometry;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -9,7 +10,7 @@ import java.util.Arrays;
 import java.util.zip.CRC32;
 
 /**
- * Glass Plate が抱える潜像。中身は 128x128 の 8bit gray（map 色ではない）。
+ * Glass Plate が抱える潜像。中身は {@link #DIM} 角の 8bit gray（map 色ではない）。
  *
  * <p>map 色ではなく gray を持つ理由は {@code MODJAM_DESIGN_FIXES.md} A-3 のとおり。
  * 失敗マスク・露光不足/過多の明暗処理を合成してから 1 回だけ量子化するため、
@@ -20,8 +21,16 @@ import java.util.zip.CRC32;
  */
 public record LatentImage(byte[] pixels, int exposureTicks, int light) {
 
-    /** 128 x 128。 */
-    public static final int SIZE = 128 * 128;
+    /**
+     * 1 辺の画素数。<b>写真の解像度はここ 1 箇所で決まる</b>（撮影の縮小・潜像・仕上がりの全部）。
+     *
+     * <p>128 だった頃は保存にバニラの地図データを使っていたので、地図の仕様で 128 が上限だった。
+     * 保存を自前のコンポーネントへ移したので上限が外れている（2026-08-31・kura「ドットが粗すぎる」）。
+     */
+    public static final int DIM = PhotographViewGeometry.PHOTO_PX;
+
+    /** {@link #DIM} の 2 乗。 */
+    public static final int SIZE = DIM * DIM;
 
     public static final Codec<LatentImage> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BYTE_BUFFER.fieldOf("pixels")
