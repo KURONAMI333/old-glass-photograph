@@ -1,6 +1,6 @@
 package com.kuronami.oldglassphotograph.mixin;
 
-import com.kuronami.oldglassphotograph.client.view.PhotographViewer;
+import com.kuronami.oldglassphotograph.client.OgpClientCommon;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,12 +21,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GuiSetScreenMixin {
 
     /**
-     * 写真の面が開いている時に画面が開こうとしたら、面を閉じてから続ける。
-     * ポーズ画面だけは開かずに止める（{@code PhotographViewer#onScreenOpening} の判定）。
+     * 画面が開こうとしたら、まずファインダー・写真の面から抜ける。
+     * ファインダーを覗いている間と写真の面が開いている間は、そこから抜けて画面を止める
+     * （判定は {@code OgpClientCommon#onScreenOpening}）。
      */
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void ogp$onSetScreen(Screen screen, CallbackInfo ci) {
-        if (PhotographViewer.onScreenOpening(screen)) {
+        if (OgpClientCommon.onScreenOpening(screen)) {
             ci.cancel();
         }
     }

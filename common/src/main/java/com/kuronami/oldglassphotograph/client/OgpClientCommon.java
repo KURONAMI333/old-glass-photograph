@@ -3,11 +3,14 @@ package com.kuronami.oldglassphotograph.client;
 import com.kuronami.oldglassphotograph.item.GlassPlateItem;
 import com.kuronami.oldglassphotograph.item.PlateUseProgress;
 import com.kuronami.oldglassphotograph.menu.CartographyPhotographGuard;
+import com.kuronami.oldglassphotograph.client.view.PhotographViewer;
+import com.kuronami.oldglassphotograph.client.capture.PhotoCaptureClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 
 /**
  * client 側の共通処理。ローダー型を持たないので、NeoForge のイベントでも
@@ -52,4 +55,18 @@ public final class OgpClientCommon {
             CartographyPhotographGuard.apply(containerScreen.getMenu());
         }
     }
+
+    /**
+     * 画面が開こうとした時の共通の入口。ファインダー → 写真の面 の順に聞き、
+     * 先に応じた方が扱う。両ローダーとも「実際に画面が差し替わる位置」からここへ来る。
+     *
+     * @return 画面の表示そのものを止めるか
+     */
+    public static boolean onScreenOpening(@Nullable Screen newScreen) {
+        if (PhotoCaptureClient.onScreenOpening(newScreen)) {
+            return true;
+        }
+        return PhotographViewer.onScreenOpening(newScreen);
+    }
+
 }

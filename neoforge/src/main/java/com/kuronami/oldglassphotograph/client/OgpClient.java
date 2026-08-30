@@ -121,10 +121,10 @@ public final class OgpClient {
 
     /**
      * 画面が開こうとした時、写真の面を閉じる。ポーズ画面だけは開くのを止める。
-     * 判定本体は {@link PhotographViewer#onScreenOpening}。
+     * 判定本体は {@link OgpClientCommon#onScreenOpening}（ファインダー → 写真の面 の順）。
      */
     private static void onScreenOpening(ScreenEvent.Opening event) {
-        if (PhotographViewer.onScreenOpening(event.getNewScreen())) {
+        if (OgpClientCommon.onScreenOpening(event.getNewScreen())) {
             event.setCanceled(true);
         }
     }
