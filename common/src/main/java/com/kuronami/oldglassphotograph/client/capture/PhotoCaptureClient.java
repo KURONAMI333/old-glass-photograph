@@ -126,6 +126,12 @@ public final class PhotoCaptureClient {
      * 満ちる時刻を割り出せたりすると、それは数値・進捗の割合を出したのと同じになる
      * （{@code MODJAM_DECISIONS_OGP.md} §15）。この拍から読めるのは「時間が進んでいる」だけ。
      */
+    /** 光の読みを出しておく長さ（tick）。構図の邪魔になるので出しっぱなしにしない。 */
+    private static final int READING_HOLD_TICKS = 60;
+
+    /** 上の後に薄れて消えるまでの長さ（tick）。 */
+    private static final int READING_FADE_TICKS = 20;
+
     private static final int TICK_INTERVAL = 20;
 
     /** 時計の音。手元の小さな音なので通さない。 */
@@ -606,6 +612,16 @@ public final class PhotoCaptureClient {
         if (phase != Phase.PEEK || current == null) {
             return;
         }
+        // 覗いてから数秒で消す（2026-08-31 kura「写真取るのに邪魔だぜ」）。
+        // 読みは覗いた時に 1 回決まって以後変わらないので、経過 tick だけで足りる。
+        int alpha = 255;
+        if (peekElapsed >= READING_HOLD_TICKS) {
+            int fade = peekElapsed - READING_HOLD_TICKS;
+            if (fade >= READING_FADE_TICKS) {
+                return;
+            }
+            alpha = 255 * (READING_FADE_TICKS - fade) / READING_FADE_TICKS;
+        }
         Font font = Minecraft.getInstance().font;
         // 開口の幅で折り返す。1 行で描くと長い読みが画面の外へ出る
         // （実測 2026-08-31: bright + shoot_hint の 104 文字が 1920x1080 の既定スケールで左右にはみ出した）。
@@ -625,7 +641,8 @@ public final class PhotoCaptureClient {
         for (int i = 0; i < lines.size(); i++) {
             Component part = lines.get(i);
             int width = font.width(part);
-            graphics.textWithBackdrop(font, part, -width / 2, top + step * i, width, 0xFFFFFFFF);
+            graphics.textWithBackdrop(font, part, -width / 2, top + step * i, width,
+                    (alpha << 24) | 0x00FFFFFF);
         }
         graphics.pose().popMatrix();
     }
