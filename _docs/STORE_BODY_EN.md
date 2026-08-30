@@ -1,4 +1,6 @@
-Recreates 19th-century wet plate collodion photography as an in-world process. Set up a Wet Plate Camera - it stands two blocks tall on its stand, putting the lens at about eye level - aim it at a scene, and everything from there runs through blocks and items. Nothing in the loop opens a menu or an inventory screen.
+Recreate wet plate collodion photography with a working camera, timed glass plates, light-sensitive exposures, and photographs saved with the world.
+
+The Wet Plate Camera stands two blocks tall with its lens near eye level. Aim it at a scene, then complete every step through blocks and items without opening a menu or inventory screen.
 
 ## The process
 
@@ -26,7 +28,7 @@ Eight advancements follow the process, three of them for the ways it goes wrong.
 
 ## Compatibility
 
-NeoForge, Minecraft 26.2. Shaders are supported — a plate records the scene the way you see it, so shader lighting and water reflections end up on the photograph.
+Shaders are supported — a plate records the scene the way you see it, so shader lighting and water reflections end up on the photograph.
 
 ---
 
@@ -34,4 +36,4 @@ Made for ModJam 2026 (Echoes of the Past).
 
 Source: https://github.com/KURONAMI333/old-glass-photograph
 
-Free to use in any modpack, public or private.
+All Rights Reserved. Modpack inclusion is allowed without permission or credit.
