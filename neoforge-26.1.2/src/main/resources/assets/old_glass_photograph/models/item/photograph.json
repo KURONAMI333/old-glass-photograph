@@ -2,5 +2,11 @@
   "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "old_glass_photograph:item/photograph"
+  },
+  "display": {
+    "fixed": {
+      "rotation": [0, 180, 0],
+      "scale": [2.0, 2.0, 2.0]
+    }
   }
 }

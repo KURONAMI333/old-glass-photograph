@@ -2,12 +2,12 @@ package com.kuronami.oldglassphotograph.capture;
 
 /**
  * 写真をじっくり見る面の寸法。<b>Minecraft の型を 1 つも使わない純関数</b>で、
- * 「128x128 の 1 画素が画面の何 px になるか」と「ケースの枠が画面に収まるか」を
+ * 「{@link #PHOTO_PX} 角の 1 画素が画面の何 px になるか」と「ケースの枠が画面に収まるか」を
  * ここ 1 箇所で決める（{@code MODJAM_DECISIONS_OGP.md} §32-5）。
  *
  * <h2>なぜ GUI px でなく render target の px で測るか</h2>
  *
- * 写真は 128 px なので、整数倍で置くと寸法は 128 の倍数にしか跳べない。GUI 座標で測ると
+ * 写真は {@link #PHOTO_PX} px なので、整数倍で置くと寸法はその倍数にしか跳べない。GUI 座標で測ると
  * この跳びが粗すぎて画面が余る。1920x1080 の既定（guiScale 4 = 480x270 GUI px）では
  * 2 倍が 256 GUI px で高さ 270 に枠ごと収まらず、<b>1 倍 = 高さの 47%</b> まで落ちる。
  *
@@ -29,15 +29,21 @@ package com.kuronami.oldglassphotograph.capture;
  * <h2>枠は「収まるかどうか」の計算の内側に入れる</h2>
  *
  * 写真の大きさを先に決めてから枠を外へ描き足すと、解像度によって枠が画面外へ出る。
- * ここでは写真 128 + 枠 {@link #FRAME_UNITS} x2 = {@link #TOTAL_UNITS} 単位を 1 つの矩形として扱い、
+ * ここでは写真 {@link #PHOTO_PX} + 枠 {@link #FRAME_UNITS} x2 = {@link #TOTAL_UNITS} 単位を 1 つの矩形として扱い、
  * その矩形が画面に収まる最大の整数倍を選ぶ。撮影者と日付の行の高さも同じ計算に入れる。
  *
  * <p>検算は {@code main} が実寸で印字する（{@code java PhotographViewGeometry.java}）。
  */
 public final class PhotographViewGeometry {
 
-    /** 写真の 1 辺（画素）。map saved data と同じ。 */
-    public static final int PHOTO_PX = 128;
+    /**
+     * 写真の 1 辺（画素）。<b>解像度の正本はここ</b>で、{@code LatentImage.DIM} がこれを引く。
+     *
+     * <p>128 だったのは保存にバニラの地図データを使っていたから（地図は 128x128 固定）。
+     * 保存を自前のコンポーネントへ移して上限が外れたので 256 にした（2026-08-31）。
+     * 画面に占める大きさは変わらない（整数倍が 6 から 3 へ落ちるだけ）で、密度が 4 倍になる。
+     */
+    public static final int PHOTO_PX = 256;
 
     /** 木の枠の幅（写真 1 画素を 1 単位とする）。外から 面取り 1 / 地 2 / 内側の落ち 1。 */
     public static final int WOOD_UNITS = 4;
