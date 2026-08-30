@@ -11,7 +11,8 @@
     "CameraMixin",
     "ItemInHandRendererMixin",
     "MinecraftInteractionMixin",
-    "GuiSetScreenMixin"
+    "GuiSetScreenMixin",
+    "GuiViewfinderMixin"
   ],
   "injectors": {
     "defaultRequire": 1
