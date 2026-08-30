@@ -39,11 +39,12 @@ public abstract class MinecraftMixin {
 
     /**
      * 写真の面が開いている時に画面が開こうとしたら、面を閉じてから続ける。
-     * ポーズ画面だけは開かずに止める（{@code PhotographViewer#onScreenOpening} の判定）。
+     * 判定はファインダー → 写真の面 の順。
      */
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void ogp$onSetScreen(Screen screen, CallbackInfo ci) {
-        if (PhotographViewer.onScreenOpening(screen)) {
+        if (PhotoCaptureClient.onScreenOpening(screen)
+                || PhotographViewer.onScreenOpening(screen)) {
             ci.cancel();
         }
     }

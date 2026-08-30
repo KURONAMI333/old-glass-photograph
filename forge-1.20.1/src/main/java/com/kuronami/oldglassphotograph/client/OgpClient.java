@@ -58,7 +58,8 @@ public final class OgpClient {
         // --- 写真をじっくり見る面（opener 結線）。画面開始の扱いは ScreenEvent.Opening。
         PhotographViewer.init();
         MinecraftForge.EVENT_BUS.addListener((ScreenEvent.Opening event) -> {
-            if (PhotographViewer.onScreenOpening(event.getNewScreen())) {
+            if (PhotoCaptureClient.onScreenOpening(event.getNewScreen())
+                || PhotographViewer.onScreenOpening(event.getNewScreen())) {
                 event.setCanceled(true);
             }
         });

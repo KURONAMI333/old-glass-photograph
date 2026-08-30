@@ -14,6 +14,7 @@ import com.kuronami.oldglassphotograph.network.ViewfinderOpenPayload;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.CameraType;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.Font;
@@ -575,6 +576,31 @@ public final class PhotoCaptureClient {
     }
 
     // ------------------------------------------------------------ 出口まわり
+
+    /**
+     * 覗きの間に画面が開こうとした時の扱い。ローダー側の画面開始 hook から呼ぶ。
+     *
+     * <p>Esc も E も「カメラから離れる」に倒す。工程はメニューを使わないので、覗いたまま
+     * 画面が開くと暗幕の開口の中に vanilla の画面が覗く形になり、出口も分からなくなる。
+     *
+     * <p>ウィンドウが非アクティブな時のポーズ画面（vanilla の自動ポーズ）は握り潰さない。
+     * 握り潰すと席を外している間もワールドが動き続ける。
+     *
+     * @return 画面の表示そのものを止めるか
+     */
+    public static boolean onScreenOpening(@Nullable Screen newScreen) {
+        if (phase == Phase.IDLE) {
+            return false;
+        }
+        boolean swallow = newScreen != null && Minecraft.getInstance().isWindowActive();
+        // 露光が満ちて像の返りを待っている間は抜けない（抜けると撮った像を捨てることになる）。
+        if (phase == Phase.WAITING) {
+            return swallow;
+        }
+        play(SoundEvents.SPYGLASS_STOP_USING, 0.5F, 0.9F);
+        forceRestore();
+        return swallow;
+    }
 
     /** 移動・スニークのキーが押されているか。 */
     private static boolean exitKeyDown(Minecraft mc) {
