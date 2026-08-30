@@ -1,5 +1,7 @@
 package com.kuronami.oldglassphotograph.capture;
 
+import com.kuronami.oldglassphotograph.OgpObjects;
+import com.kuronami.oldglassphotograph.block.CreativeCameraBlock;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlock;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlockEntity;
 import com.kuronami.oldglassphotograph.component.LatentImage;
@@ -142,6 +144,13 @@ public final class PhotoCaptureController {
             close(player, Component.translatable("message.old_glass_photograph.camera.exposure_in_progress"));
             return;
         }
+        boolean creative = isCreativeCamera(player.level(), basePos);
+        if (creative && !camera.hasPlate()) {
+            // 撮影用。工程を踏まずに撮れるように、その場で感光済みの板を入れる。
+            camera.setPlate(freshPlate(player.level().getGameTime()));
+            camera.setChanged();
+        }
+
         ViewfinderReading blocked = readPlate(player, camera);
         if (blocked != null) {
             close(player, blocked.reason());
@@ -152,7 +161,10 @@ public final class PhotoCaptureController {
         int light = ExposureModel.sampleLight(player.level(), basePos.above(), facing);
         // この明るさで目標に届くまでの tick。上限を超える暗さでも露光自体は許す
         // （上限まで開けて届かなければ露光不足。板は写真になる）。
-        int window = Math.min(ExposureModel.requiredTicks(light), MAX_EXPOSURE_TICKS);
+        // 撮影用は明るさに関わらず一瞬で閉じる（MIN_EXPOSURE_FRAMES 分のフレームは要る）。
+        int window = creative
+                ? MIN_EXPOSURE_FRAMES * INTERVAL_TICKS + 2
+                : Math.min(ExposureModel.requiredTicks(light), MAX_EXPOSURE_TICKS);
 
         // 乾燥期限を跨ぐ露光は arm しない（MODJAM_DECISIONS_OGP.md §27 B4）。
         // 「すでに乾いているか」だけを見ていると、成功を告げた直後に潜像が消える。
@@ -171,6 +183,23 @@ public final class PhotoCaptureController {
         // ここで鳴らすのは周りに居る player のぶん。
         player.level().playSound(player, basePos.above(),
                 SoundEvents.WOODEN_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.7F, 0.5F);
+    }
+
+    /**
+     * 撮影用のカメラ（{@code dev/creative-camera} ブランチ限定）。出荷物では常に false になる
+     * ＝ このメソッドを呼んでいる分岐は本番では通らない。
+     */
+    private static boolean isCreativeCamera(net.minecraft.world.level.Level level, BlockPos basePos) {
+        return level.getBlockState(basePos).getBlock() instanceof CreativeCameraBlock;
+    }
+
+    /** 撮影用カメラがその場で用意する、感光済みで乾かない板。 */
+    private static ItemStack freshPlate(long gameTime) {
+        ItemStack plate = new ItemStack(OgpObjects.glassPlate());
+        plate.set(OgpComponents.plateProcess(), new PlateProcess(
+                PlateProcess.Stage.SENSITIZED,
+                gameTime + GlassPlateItem.WET_TICKS, GlassPlateItem.WET_TICKS / 20));
+        return plate;
     }
 
     /**
@@ -243,6 +272,16 @@ public final class PhotoCaptureController {
 
         player.level().playSound(player, pos.above(),
                 SoundEvents.WOODEN_BUTTON_CLICK_OFF, SoundSource.BLOCKS, 0.7F, 0.5F);
+
+        if (isCreativeCamera(player.level(), pos)) {
+            // 撮影用。現像も定着も踏まずに、この場で写真にして手へ渡す。
+            if (PhotoDeveloper.develop(player, plate)) {
+                camera.setPlate(ItemStack.EMPTY);
+                camera.clearCapture();
+                camera.setChanged();
+            }
+            return;
+        }
 
         ExposureModel.Result result = ExposureModel.evaluate(payload.gray(), exposure, session.light());
         LOG.info("[ogp] exposed at {}: light={} ticks={} required={} frames={} band={}",

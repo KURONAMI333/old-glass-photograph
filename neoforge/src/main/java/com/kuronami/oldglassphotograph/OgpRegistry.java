@@ -2,6 +2,7 @@ package com.kuronami.oldglassphotograph;
 
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlock;
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlockEntity;
+import com.kuronami.oldglassphotograph.block.CreativeCameraBlock;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlock;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlockEntity;
 import com.kuronami.oldglassphotograph.capture.PhotoCaptureController;
@@ -81,6 +82,20 @@ public final class OgpRegistry {
      * 内部名がそのまま表示される（vanilla のブロックアイテムと NeoForge の
      * {@code registerSimpleBlockItem} は必ずこれを付けている）。
      */
+    /**
+     * 撮影用のカメラ。<b>出荷物には入らない</b>（dev/creative-camera ブランチ限定）。
+     * 見た目・当たり判定は通常のカメラと同じで、モデルも同じものを指す。
+     */
+    public static final DeferredBlock<CreativeCameraBlock> CREATIVE_CAMERA = BLOCKS.registerBlock(
+            "creative_camera",
+            CreativeCameraBlock::new,
+            () -> BlockBehaviour.Properties.of().strength(1.5F).sound(SoundType.WOOD).noOcclusion());
+
+    public static final DeferredItem<WetPlateCameraBlockItem> CREATIVE_CAMERA_ITEM = ITEMS.registerItem(
+            "creative_camera",
+            properties -> new WetPlateCameraBlockItem(
+                    CREATIVE_CAMERA.get(), properties.useBlockDescriptionPrefix()));
+
     public static final DeferredItem<WetPlateCameraBlockItem> WET_PLATE_CAMERA_ITEM = ITEMS.registerItem(
             "wet_plate_camera",
             properties -> new WetPlateCameraBlockItem(
@@ -141,7 +156,8 @@ public final class OgpRegistry {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WetPlateCameraBlockEntity>>
             CAMERA_BLOCK_ENTITY = BLOCK_ENTITIES.register("wet_plate_camera",
-            () -> new BlockEntityType<>(WetPlateCameraBlockEntity::new, WET_PLATE_CAMERA.get()));
+            () -> new BlockEntityType<>(WetPlateCameraBlockEntity::new,
+                    java.util.Set.of(WET_PLATE_CAMERA.get(), CREATIVE_CAMERA.get())));
 
     /** 箱の中の板と、走っている工程を持つ。 */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DarkroomTableBlockEntity>>
