@@ -14,7 +14,7 @@ The Wet Plate Camera stands two blocks tall with its lens near eye level. Aim it
 
 ## What comes out
 
-A black-and-white photograph, 128×128. It carries the name of whoever took it, which day of the world it was, and the real-world date and time it was developed. Frame it in an item frame and it stays there through a dedicated server restart — the image is saved with the world, not the session. Hold one up and right-click to look at it properly; you can keep walking while you do.
+A black-and-white photograph, 256×256. It carries the name of whoever took it, which day of the world it was, and the real-world date and time it was developed. Frame it in an item frame and it stays there through a dedicated server restart — the image is saved with the world, not the session. Hold one up and right-click to look at it properly; you can keep walking while you do.
 
 ## What doesn't go wrong
 
