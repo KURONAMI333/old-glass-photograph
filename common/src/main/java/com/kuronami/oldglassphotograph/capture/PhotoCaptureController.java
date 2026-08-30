@@ -161,10 +161,10 @@ public final class PhotoCaptureController {
         int light = ExposureModel.sampleLight(player.level(), basePos.above(), facing);
         // この明るさで目標に届くまでの tick。上限を超える暗さでも露光自体は許す
         // （上限まで開けて届かなければ露光不足。板は写真になる）。
-        // 撮影用は明るさに関わらず一瞬で閉じる（MIN_EXPOSURE_FRAMES 分のフレームは要る）。
-        int window = creative
-                ? MIN_EXPOSURE_FRAMES * INTERVAL_TICKS + 2
-                : Math.min(ExposureModel.requiredTicks(light), MAX_EXPOSURE_TICKS);
+        // 露光の長さは撮影用でも通常と同じにする。明暗は「露光した tick ÷ その明るさで必要な tick」で
+        // 決まるので、ここを詰めると露光不足で真っ黒になる（2026-08-31 実機）。
+        // シャッターが開いている数秒はトレーラーの見せ場でもあるので、そのまま残す。
+        int window = Math.min(ExposureModel.requiredTicks(light), MAX_EXPOSURE_TICKS);
 
         // 乾燥期限を跨ぐ露光は arm しない（MODJAM_DECISIONS_OGP.md §27 B4）。
         // 「すでに乾いているか」だけを見ていると、成功を告げた直後に潜像が消える。
