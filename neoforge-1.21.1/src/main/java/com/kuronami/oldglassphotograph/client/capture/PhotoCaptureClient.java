@@ -115,6 +115,12 @@ public final class PhotoCaptureClient {
     /** 遅れの追従。1 に近いほど即応（＝遅れが消える）。 */
     private static final float FRAME_DRIFT_FOLLOW = 0.45F;
 
+    /** 光の読みを出しておく長さ（tick）。構図の邪魔になるので出しっぱなしにしない。 */
+    private static final int READING_HOLD_TICKS = 60;
+
+    /** 上の後に薄れて消えるまでの長さ（tick）。 */
+    private static final int READING_FADE_TICKS = 20;
+
     /**
      * 露光中に時計が刻む間隔（tick）。<b>1 秒固定で、露光の長さに一切依存しない。</b>
      *
@@ -127,12 +133,6 @@ public final class PhotoCaptureClient {
      * 満ちる時刻を割り出せたりすると、それは数値・進捗の割合を出したのと同じになる
      * （{@code MODJAM_DECISIONS_OGP.md} §15）。この拍から読めるのは「時間が進んでいる」だけ。
      */
-    /** 光の読みを出しておく長さ（tick）。構図の邪魔になるので出しっぱなしにしない。 */
-    private static final int READING_HOLD_TICKS = 60;
-
-    /** 上の後に薄れて消えるまでの長さ（tick）。 */
-    private static final int READING_FADE_TICKS = 20;
-
     private static final int TICK_INTERVAL = 20;
 
     /** 時計の音。手元の小さな音なので通さない。 */
