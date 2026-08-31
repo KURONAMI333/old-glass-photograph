@@ -527,11 +527,15 @@ public final class PhotoCaptureClient {
         int dx = Math.round(frameDriftX);
         int dy = Math.round(frameDriftY);
         int pad = ViewfinderGeometry.framePad(open.side(), (int) Math.ceil(FRAME_DRIFT_MAX));
+        // blit は blend を張らないので、すりガラスの半透明が効かず面が塗り潰される。
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
         graphics.blit(VIEWFINDER_TEXTURE,
                 open.x() - pad + dx, open.y() - pad + dy,
                 open.right() + pad + dx - (open.x() - pad + dx),
                 open.bottom() + pad + dy - (open.y() - pad + dy),
                 0.0F, 0.0F, VIEWFINDER_TEX_SIZE, VIEWFINDER_TEX_SIZE, VIEWFINDER_TEX_SIZE, VIEWFINDER_TEX_SIZE);
+        com.mojang.blaze3d.systems.RenderSystem.disableBlend();
 
         // 3. レンズキャップ。開いた直後と、露光が満ちた直後に開口を塞ぐ。
         if (openFlash > 0 || phase == Phase.WAITING) {
