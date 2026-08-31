@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -91,6 +92,17 @@ public final class OgpRegistry {
             "darkroom_table", DARKROOM_TABLE);
 
     /**
+     * カメラのブロックアイテム。設置前に向きを持たせたいので専用クラスで登録する
+     * （26.x / 1.21.11 セルと同じ）。{@code useBlockDescriptionPrefix} が無いと
+     * 表示名は 1.21.1 の {@code BlockItem} がブロック側の翻訳キーへ委譲するので、
+     * DARKROOM_TABLE_ITEM と同じく properties への指定は要らない。
+     */
+    public static final DeferredItem<WetPlateCameraBlockItem> WET_PLATE_CAMERA_ITEM = ITEMS.registerItem(
+            "wet_plate_camera",
+            properties -> new WetPlateCameraBlockItem(WET_PLATE_CAMERA.get(), properties),
+            new Item.Properties());
+
+    /**
      * <b>素の板は重なり、工程に入った板は 1 枚ずつになる。</b>
      * ここで決まるのは素の板の上限だけで、工程に入った板は
      * {@code GlassPlateItem} がスタックごとに {@code MAX_STACK_SIZE} を 1 へ落とす
@@ -123,7 +135,7 @@ public final class OgpRegistry {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + OldGlassPhotograph.MODID))
-                    .icon(() -> new ItemStack(WET_PLATE_CAMERA.get()))
+                    .icon(() -> new ItemStack(WET_PLATE_CAMERA_ITEM.get()))
                     .build());
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WetPlateCameraBlockEntity>>
@@ -146,7 +158,9 @@ public final class OgpRegistry {
         OgpDataComponents.init(modBus);
         modBus.addListener(OgpRegistry::registerPayloads);
         modBus.addListener(OgpRegistry::buildCreativeTab);
-        registerCauldronInteractions();
+        // レジストリが凍結した後に put する。構築の最中だと DeferredHolder が未束縛で落ちる。
+        modBus.addListener(FMLCommonSetupEvent.class,
+                event -> event.enqueueWork(OgpRegistry::registerCauldronInteractions));
     }
 
     /**
@@ -176,7 +190,7 @@ public final class OgpRegistry {
             event.accept(COLLODION_KIT.get());
             event.accept(DEVELOPER.get());
             event.accept(FIXER.get());
-            event.accept(WET_PLATE_CAMERA.get());
+            event.accept(WET_PLATE_CAMERA_ITEM.get());
             event.accept(DARKROOM_TABLE_ITEM.get());
             // 写真はタブに出さない。像を持たない写真は白紙の板でしかなく、
             // JEI の一覧にも中身の無いアイテムとして並ぶ（出所: 2026-08-23 実機検証）。

@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -159,7 +160,9 @@ public final class OgpRegistry {
         OgpDataComponents.init(modBus);
         modBus.addListener(OgpRegistry::registerPayloads);
         modBus.addListener(OgpRegistry::buildCreativeTab);
-        registerCauldronInteractions();
+        // レジストリが凍結した後に put する。構築の最中だと DeferredHolder が未束縛で落ちる。
+        modBus.addListener(FMLCommonSetupEvent.class,
+                event -> event.enqueueWork(OgpRegistry::registerCauldronInteractions));
     }
 
     /**
