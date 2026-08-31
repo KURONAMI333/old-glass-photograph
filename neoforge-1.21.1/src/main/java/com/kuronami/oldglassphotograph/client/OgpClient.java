@@ -15,6 +15,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
@@ -65,7 +66,10 @@ public final class OgpClient {
         // 板の段階モデルは ItemProperties（vanilla compass/clock 方式）、
         // 写真の面は IClientItemExtensions の BEWLR で描く。
         modBus.addListener(OgpClient::registerClientExtensions);
-        PlateStageProperty.register();
+        // ItemProperties への登録は client setup で行う。構築の最中だと
+        // OgpObjects がまだ配線されていない（配線は common setup）。
+        modBus.addListener(FMLClientSetupEvent.class,
+                event -> event.enqueueWork(PlateStageProperty::register));
 
         // --- 一人称の手持ち差し替え。RenderHandEvent は game bus（NeoForge.EVENT_BUS）側。
         NeoForge.EVENT_BUS.addListener(PhotographHandEventHolder::onPhotographHand);
@@ -93,7 +97,10 @@ public final class OgpClient {
 
     /** 写真アイテムの面を BEWLR へ差し替える（SpecialModelRenderer 機構の 1.21.1 相当）。 */
     private static void registerClientExtensions(RegisterClientExtensionsEvent event) {
-        event.registerItem(PhotographItemRenderer.EXTENSIONS, com.kuronami.oldglassphotograph.OgpObjects.photograph());
+        // このイベントは common setup より前に来るので、common ホルダ（OgpObjects）ではなく
+        // 登録面の DeferredItem を直に引く。こちらは登録イベントの直後に束縛される。
+        event.registerItem(PhotographItemRenderer.EXTENSIONS,
+                com.kuronami.oldglassphotograph.OgpRegistry.PHOTOGRAPH.get());
     }
 
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
