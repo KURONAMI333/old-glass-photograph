@@ -579,4 +579,16 @@ public class GlassPlateItem extends Item {
             return null;
         }
     }
+
+    /**
+     * 残り秒は 1 秒ごとに書き変わるので、これが無いと毎秒「別のアイテムに持ち替えた」と
+     * 見なされて装備し直しのモーションが出る。26.x はコンポーネント側の
+     * {@code ignoreSwapAnimation} で同じことをしている（この帯にその機構は無い）。
+     *
+     * <p>名前と tooltip は従来どおり毎秒更新されるので、残り秒の表示は消えない。
+     */
+    @Override
+    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        return slotChanged || oldStack.getItem() != newStack.getItem();
+    }
 }
