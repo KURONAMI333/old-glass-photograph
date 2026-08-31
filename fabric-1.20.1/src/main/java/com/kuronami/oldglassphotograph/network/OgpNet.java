@@ -48,10 +48,23 @@ public final class OgpNet {
         void sendToServer(ResourceLocation channel, FriendlyByteBuf buf);
     }
 
-    private static volatile @Nullable Sink sink;
+    /** server -&gt; player の送信口。SERVER_STOPPING で外す。 */
+    private static volatile @Nullable Sink serverSink;
 
-    public static void wire(@Nullable Sink impl) {
-        sink = impl;
+    /** client -&gt; server の送信口。 */
+    private static volatile @Nullable Sink clientSink;
+
+    /**
+     * 向きごとに別々に持つ。1 本にすると、単一プレイでは client entry の初期化が
+     * server entry の後に走るぶん server -&gt; player の口が上書きされて消える
+     * （26.x の Fabric セルも setSendToPlayer / setSendToServer で分けている）。
+     */
+    public static void wireServer(@Nullable Sink impl) {
+        serverSink = impl;
+    }
+
+    public static void wireClient(@Nullable Sink impl) {
+        clientSink = impl;
     }
 
     // ------------------------------------------------------------ server -> client
@@ -86,7 +99,7 @@ public final class OgpNet {
      * 繝舌ャ繝輔ぃ繧剃ｽ懊▲縺ｦ sink 縺ｸ貂｡縺吶Ｔink 縺檎┌縺・俣縺ｮ騾∽ｿ｡縺ｯ謠｡繧頑ｽｰ縺吶・     * ・・6.x / 1.21.1 縺ｮ {@code PacketDistributor::sendToPlayer} 蟾ｮ縺玲崛縺井ｽ咲ｽｮ縺ｨ蜷後§縲ゑｼ・     */
     private static void dispatch(@Nullable ServerPlayer player, ResourceLocation channel,
                                  Consumer<FriendlyByteBuf> writer) {
-        Sink current = sink;
+        Sink current = player != null ? serverSink : clientSink;
         if (current == null) {
             return;
         }
