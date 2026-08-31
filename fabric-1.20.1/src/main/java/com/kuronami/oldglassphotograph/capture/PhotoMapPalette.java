@@ -30,6 +30,9 @@ public final class PhotoMapPalette {
     /** 実際に採用した階調（輝度の昇順・重複除去済み）。 */
     private static final int[] STEP_LUMINANCE;
 
+    /** {@link #LUT} の gray 版。map 色 id ではなく、丸めた先の輝度そのものを返す。 */
+    private static final byte[] GRAY_LUT = new byte[256];
+
     private static final byte[] STEP_PACKED;
 
     static {
@@ -83,6 +86,7 @@ public final class PhotoMapPalette {
                 }
             }
             LUT[v] = STEP_PACKED[best];
+            GRAY_LUT[v] = (byte) STEP_LUMINANCE[best];
         }
     }
 
@@ -106,7 +110,21 @@ public final class PhotoMapPalette {
         return LUT[Mth.clamp(gray, 0, 255)];
     }
 
-    /** gray 16,384 byte -&gt; packed map color 16,384 byte。 */
+    /**
+     * {@link #quantizeAll} と同じ階段に丸めて、<b>輝度のまま</b>返す。
+     *
+     * <p>写真の保存を地図データから自前のタグへ移したので（{@code PhotoImage}）、
+     * 出力は map 色 id である必要が無くなった。階調の見た目は {@link #quantizeAll} と同一。
+     */
+    public static byte[] quantizeAllToGray(byte[] gray) {
+        byte[] out = new byte[gray.length];
+        for (int i = 0; i < gray.length; i++) {
+            out[i] = GRAY_LUT[gray[i] & 0xFF];
+        }
+        return out;
+    }
+
+    /** gray -&gt; packed map color。古い写真（0.1.2 まで）の地図データ経路だけが使う。 */
     public static byte[] quantizeAll(byte[] gray) {
         byte[] out = new byte[gray.length];
         for (int i = 0; i < gray.length; i++) {

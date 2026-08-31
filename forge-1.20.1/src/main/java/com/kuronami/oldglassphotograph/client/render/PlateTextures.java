@@ -1,10 +1,15 @@
 package com.kuronami.oldglassphotograph.client.render;
 
 import com.kuronami.oldglassphotograph.OldGlassPhotograph;
+import com.kuronami.oldglassphotograph.component.LatentImage;
+import com.kuronami.oldglassphotograph.component.OgpNbt;
+import com.kuronami.oldglassphotograph.component.PhotoImage;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
@@ -33,7 +38,57 @@ public final class PlateTextures {
 
     private static final Map<Integer, ResourceLocation> TEXTURES = new HashMap<>();
 
+    /** 自前のタグに像を持つ写真（0.1.3 以降）のテクスチャ。 */
+    private static final Map<Long, ResourceLocation> PHOTOS = new HashMap<>();
+
     private PlateTextures() {
+    }
+
+    /**
+     * 写真アイテムから貼るテクスチャを決める。
+     *
+     * <p>0.1.2 までに撮った写真は像を地図データに持っているので、そちらも読めるようにしてある
+     * （既存のワールドの写真を壊さないため）。0.1.3 以降の写真は {@link PhotoImage} を持つ。
+     */
+    public static ResourceLocation resolve(ItemStack stack) {
+        PhotoImage image = OgpNbt.photo(stack);
+        if (image != null) {
+            return photo(image);
+        }
+        Integer id = OgpNbt.mapId(stack);
+        if (id == null) {
+            return BLANK;
+        }
+        ClientLevel level = Minecraft.getInstance().level;
+        return texture(id, level == null ? null : level.getMapData(mapKey(id)));
+    }
+
+    /** 1.20.1 の map data は String キー（vanilla 命名）。 */
+    public static String mapKey(int id) {
+        return "map_" + id;
+    }
+
+    /** 像を持つ写真の動的テクスチャ。初回呼び出しで生成し、以後は同じ RL を返す。 */
+    public static ResourceLocation photo(PhotoImage image) {
+        if (!image.hasPixels()) {
+            return BLANK;
+        }
+        return PHOTOS.computeIfAbsent(image.id(), key -> registerPhoto(key, image.gray()));
+    }
+
+    private static ResourceLocation registerPhoto(long key, byte[] gray) {
+        DynamicTexture texture = new DynamicTexture(LatentImage.DIM, LatentImage.DIM, true);
+        NativeImage pixels = texture.getPixels();
+        for (int y = 0; y < LatentImage.DIM; y++) {
+            for (int x = 0; x < LatentImage.DIM; x++) {
+                int v = gray[x + y * LatentImage.DIM] & 0xFF;
+                // 無彩色なので RGBA と ABGR の並びの違いは結果に出ない。
+                pixels.setPixelRGBA(x, y, 0xFF000000 | (v << 16) | (v << 8) | v);
+            }
+        }
+        texture.upload();
+        return Minecraft.getInstance().getTextureManager()
+                .register("old_glass_photograph/photo/" + key, texture);
     }
 
     /**
