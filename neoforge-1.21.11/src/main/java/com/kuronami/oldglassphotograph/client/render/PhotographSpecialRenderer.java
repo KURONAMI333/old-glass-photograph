@@ -3,6 +3,8 @@ package com.kuronami.oldglassphotograph.client.render;
 import com.kuronami.oldglassphotograph.OldGlassPhotograph;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.MapCodec;
+import com.kuronami.oldglassphotograph.component.OgpComponents;
+import com.kuronami.oldglassphotograph.component.PhotoImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -66,6 +68,11 @@ public final class PhotographSpecialRenderer implements SpecialModelRenderer<Pho
 
     @Override
     public @Nullable Plate extractArgument(ItemStack stack) {
+        PhotoImage image = stack.get(OgpComponents.photoImage());
+        if (image != null) {
+            // 像はアイテムに載っているので、この時点で必ず揃っている（同期待ちが無い）。
+            return new Plate(image.id(), image, null, true);
+        }
         MapId id = stack.get(DataComponents.MAP_ID);
         if (id == null) {
             // 像を持たない写真は全部同じ見た目なので、識別子を足さずに 1 つの GUI スロットを共有してよい。
@@ -76,7 +83,7 @@ public final class PhotographSpecialRenderer implements SpecialModelRenderer<Pho
         // （MC: net/minecraft/client/gui/render/GuiItemAtlas.java:73-92）、
         // 「まだ届いていない絵」がそのまま焼き付くのを防ぐ。像は locked なので届いた後は変わらない。
         boolean synced = level != null && level.getMapData(id) != null;
-        return new Plate(id, synced);
+        return new Plate(0L, null, id, synced);
     }
 
     @Override
@@ -84,12 +91,18 @@ public final class PhotographSpecialRenderer implements SpecialModelRenderer<Pho
                        SubmitNodeCollector collector,
                        int lightCoords, int overlayCoords, boolean hasFoil, int outlineColor) {
         Identifier texture = BLANK;
-        if (plate != null) {
+        if (plate != null && plate.image() != null) {
+            Identifier resolved = PhotoTextures.prepare(plate.image());
+            if (resolved != null) {
+                texture = resolved;
+            }
+        } else if (plate != null && plate.mapId() != null) {
+            // 0.1.2 までに撮った写真。像は地図データにある。
             Minecraft minecraft = Minecraft.getInstance();
             ClientLevel level = minecraft.level;
-            MapItemSavedData data = level == null ? null : level.getMapData(plate.id());
+            MapItemSavedData data = level == null ? null : level.getMapData(plate.mapId());
             if (data != null) {
-                texture = minecraft.getMapTextureManager().prepareMapTexture(plate.id(), data);
+                texture = minecraft.getMapTextureManager().prepareMapTexture(plate.mapId(), data);
             }
         }
 
@@ -121,10 +134,29 @@ public final class PhotographSpecialRenderer implements SpecialModelRenderer<Pho
     /**
      * 描くのに要る全部。<b>値で等しいこと</b>が要る（GUI アトラスのキーになる）。
      *
-     * @param id     像を持つ map の id
-     * @param synced client が既にその画素を持っているか
+     * <p>等値判定は {@code imageId} / {@code mapId} / {@code ready} だけで行う。{@code image} は
+     * 64KB の画素列を持つので、そのまま比較すると GUI アトラスのキー比較が毎フレーム重くなる。
+     * 像は現像した時点で確定するので、id が同じなら中身も同じでよい。
+     *
+     * @param imageId 自前で持つ像の id（地図由来の古い写真では 0）
+     * @param image   自前で持つ像。地図由来の古い写真では null
+     * @param mapId   地図由来の古い写真の map id。新しい写真では null
+     * @param ready   画素が client にあるか
      */
-    public record Plate(MapId id, boolean synced) {
+    public record Plate(long imageId, @Nullable PhotoImage image, @Nullable MapId mapId, boolean ready) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Plate(long otherImageId, PhotoImage ignored, MapId otherMapId, boolean otherReady)
+                    && otherImageId == this.imageId
+                    && java.util.Objects.equals(otherMapId, this.mapId)
+                    && otherReady == this.ready;
+        }
+
+        @Override
+        public int hashCode() {
+            return (Long.hashCode(imageId) * 31 + java.util.Objects.hashCode(mapId)) * 31 + (ready ? 1 : 0);
+        }
     }
 
     public record Unbaked() implements SpecialModelRenderer.Unbaked {
