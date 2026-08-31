@@ -15,6 +15,7 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
 /**
  * client 側の入口（Forge 配線）。共通の処理は common / client 共通クラスが持つ。
@@ -69,7 +70,9 @@ public final class OgpClient {
         MinecraftForge.EVENT_BUS.addListener(OgpClient::onPlateHand);
 
         // --- item model 系: 板の段階モデルは ItemProperties（vanilla compass/clock 方式）。
-        PlateStageProperty.register();
+        //     登録は client setup で行う。構築の最中だと OgpObjects がまだ配線されていない。
+        modBus.addListener((FMLClientSetupEvent event) ->
+                event.enqueueWork(PlateStageProperty::register));
 
         // --- mod bus 登録: HUD オーバーレイ。写真の面の BEWLR は PhotographItem#initializeClient。
         modBus.addListener(OgpClient::registerGuiOverlays);
