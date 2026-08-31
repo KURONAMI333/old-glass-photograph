@@ -1,11 +1,9 @@
 package com.kuronami.oldglassphotograph.client.render;
 
 import com.kuronami.oldglassphotograph.item.PhotographItem;
-import com.kuronami.oldglassphotograph.component.OgpNbt;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -16,7 +14,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 /**
  * 一人称の手持ちを横取りして、写真を<b>地図と同じ構えで正面に</b>掲げる。
@@ -223,18 +220,6 @@ public final class PhotographHandRenderer {
 
     /** 像が client に届いていれば動的テクスチャ、まだなら BLANK。 */
     private static ResourceLocation texture(ItemStack stack) {
-        Integer id = OgpNbt.mapId(stack);
-        if (id == null) {
-            return PlateTextures.BLANK;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        ClientLevel level = minecraft.level;
-        MapItemSavedData data = level == null ? null : level.getMapData(mapKey(id));
-        return PlateTextures.texture(id, data);
-    }
-
-    /** 1.20.1 の map data は String キー（vanilla 命名）。 */
-    public static String mapKey(int id) {
-        return "map_" + id;
+        return PlateTextures.resolve(stack);
     }
 }

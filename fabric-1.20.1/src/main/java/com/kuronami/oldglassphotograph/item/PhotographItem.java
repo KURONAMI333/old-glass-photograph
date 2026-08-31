@@ -17,15 +17,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * A wet-plate photograph backed by vanilla map saved data.
+ * A wet-plate photograph. The image itself lives on the stack, in the {@code OgpPhoto} NBT tag
+ * written by {@code com.kuronami.oldglassphotograph.component.OgpNbt} at develop time. NBT travels
+ * with the ItemStack, so held, framed and dropped photographs all see the pixels without any
+ * synchronization code of our own.
  *
- * <p>Keeping the {@link MapItem} base class is intentional: it preserves the vanilla persistence
- * and dedicated-server synchronization path for the attached map id. On 1.20.1 the map id lives in
- * the vanilla {@code map} NBT tag, written through
- * {@code com.kuronami.oldglassphotograph.component.OgpNbt} at develop time; {@code MapItem.inventoryTick} then keeps
- * the pixels flowing to whoever holds the photo, and {@code ItemFrame.getFramedMapId()} reads the
- * same tag, so framed photographs render without any extra code. The public item surface is
- * deliberately photographic rather than map-like.
+ * <p>The {@link MapItem} base class is kept so photographs taken before 0.1.3 — whose pixels are in
+ * vanilla map saved data under the {@code map} tag — keep receiving that data while held. The public
+ * item surface is deliberately photographic rather than map-like.
  */
 @SuppressWarnings("unused")
 public final class PhotographItem extends MapItem {

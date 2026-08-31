@@ -26,12 +26,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Marker;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +88,12 @@ public final class PhotoCaptureClient {
 
     /** 遅れの追従。1 に近いほど即応（＝遅れが消える）。 */
     private static final float FRAME_DRIFT_FOLLOW = 0.45F;
+
+    /** 光の読みを出しておく長さ（tick）。構図の邪魔になるので出しっぱなしにしない。 */
+    private static final int READING_HOLD_TICKS = 60;
+
+    /** 上の後に薄れて消えるまでの長さ（tick）。 */
+    private static final int READING_FADE_TICKS = 20;
 
     /**
      * 露光中に時計が刻む間隔（tick）。<b>1 秒固定で、露光の長さに一切依存しない。</b>
@@ -535,13 +544,36 @@ public final class PhotoCaptureClient {
         if (phase != Phase.PEEK || current == null) {
             return;
         }
+        // 覗いてから数秒で消す（2026-08-31 kura「写真取るのに邪魔だぜ」）。
+        // 読みは覗いた時に 1 回決まって以後変わらないので、経過 tick だけで足りる。
+        int alpha = 255;
+        if (peekElapsed >= READING_HOLD_TICKS) {
+            int fade = peekElapsed - READING_HOLD_TICKS;
+            if (fade >= READING_FADE_TICKS) {
+                return;
+            }
+            alpha = 255 * (READING_FADE_TICKS - fade) / READING_FADE_TICKS;
+        }
         Font font = Minecraft.getInstance().font;
-        Component line = current.line();
-        int width = font.width(line);
-        int lineY = open.bottom() - Math.max(24, open.side() / 12) - 4;
-        graphics.fill(w / 2 - width / 2 - 2, lineY - 3, w / 2 + width / 2 + 2, lineY + 5,
-                LINE_BACKDROP_COLOR);
-        graphics.drawCenteredString(font, line, w / 2, lineY, 0xFFFFFFFF);
+        // 開口の幅で折り返す。1 行で描くと長い読みが画面の外へ出る。
+        int maxWidth = Math.max(160, Math.min(open.side(), w) - 24);
+        List<FormattedCharSequence> lines = font.split(current.line(), maxWidth);
+        if (lines.isEmpty()) {
+            lines = List.of(current.line().getVisualOrderText());
+        }
+        int step = font.lineHeight + 2;
+        // 最後の行が、折り返しが無かった時と同じ高さに来るように上へ積む。
+        int lastY = open.bottom() - Math.max(24, open.side() / 12) - 4;
+        int top = lastY - step * (lines.size() - 1);
+        int backdrop = (LINE_BACKDROP_COLOR & 0x00FFFFFF)
+                | ((((LINE_BACKDROP_COLOR >>> 24) * alpha / 255) & 0xFF) << 24);
+        for (int i = 0; i < lines.size(); i++) {
+            FormattedCharSequence part = lines.get(i);
+            int width = font.width(part);
+            int y = top + step * i;
+            graphics.fill(w / 2 - width / 2 - 2, y - 3, w / 2 + width / 2 + 2, y + 5, backdrop);
+            graphics.drawString(font, part, w / 2 - width / 2, y, (alpha << 24) | 0x00FFFFFF);
+        }
     }
 
     /**
@@ -748,18 +780,18 @@ public final class PhotoCaptureClient {
         }
     }
 
-    /** 生フレーム -&gt; 中央正方形クロップ -&gt; 128x128 -&gt; 8bit gray を SUM へ加算。 */
+    /** 生フレーム -&gt; 中央正方形クロップ -&gt; {@link LatentImage#DIM} 角 -&gt; 8bit gray を SUM へ加算。 */
     private static void accumulate(NativeImage img) throws Exception {
         ViewfinderGeometry.Square c = ViewfinderGeometry.crop(img.getWidth(), img.getHeight());
-        try (NativeImage small = new NativeImage(128, 128, false)) {
+        try (NativeImage small = new NativeImage(LatentImage.DIM, LatentImage.DIM, false)) {
             img.resizeSubRectTo(c.x(), c.y(), c.side(), c.side(), small);
-            for (int y = 0; y < 128; y++) {
-                for (int x = 0; x < 128; x++) {
+            for (int y = 0; y < LatentImage.DIM; y++) {
+                for (int x = 0; x < LatentImage.DIM; x++) {
                     int argb = small.getPixelRGBA(x, y);
                     int r = (argb >> 16) & 0xFF;
                     int g = (argb >> 8) & 0xFF;
                     int b = argb & 0xFF;
-                    SUM[x + y * 128] += (r * 299 + g * 587 + b * 114) / 1000;
+                    SUM[x + y * LatentImage.DIM] += (r * 299 + g * 587 + b * 114) / 1000;
                 }
             }
         }

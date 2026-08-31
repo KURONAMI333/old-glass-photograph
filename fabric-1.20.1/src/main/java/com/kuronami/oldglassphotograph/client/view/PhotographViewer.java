@@ -4,6 +4,7 @@ import com.kuronami.oldglassphotograph.capture.PhotographViewGeometry;
 import com.kuronami.oldglassphotograph.client.capture.PhotoCaptureClient;
 import com.kuronami.oldglassphotograph.client.render.PlateTextures;
 import com.kuronami.oldglassphotograph.client.render.PhotographHandRenderer;
+import com.kuronami.oldglassphotograph.component.LatentImage;
 import com.kuronami.oldglassphotograph.component.OgpNbt;
 import com.kuronami.oldglassphotograph.component.PhotoCredit;
 import com.kuronami.oldglassphotograph.item.PhotographItem;
@@ -240,15 +241,11 @@ public final class PhotographViewer {
 
     private static void drawPhoto(ItemStack stack, ClientLevel level, GuiGraphics graphics,
                                   PhotographViewGeometry.Layout layout) {
-        Integer id = OgpNbt.mapId(stack);
-        var texture = PlateTextures.BLANK;
-        if (id != null) {
-            texture = PlateTextures.texture(id, level.getMapData(PhotographHandRenderer.mapKey(id)));
-        }
+        var texture = PlateTextures.resolve(stack);
         graphics.blit(texture,
                 layout.photoX(), layout.photoY(),
                 layout.photoSize(), layout.photoSize(),
-                0.0F, 0.0F, 128, 128, 128, 128);
+                0.0F, 0.0F, LatentImage.DIM, LatentImage.DIM, LatentImage.DIM, LatentImage.DIM);
     }
 
     /** 外枠から {@code depth} px 内側の正方形を塗る。 */

@@ -27,7 +27,15 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class OgpNbt {
 
-    /** 写真の像の map id。vanilla filled_map と同じキー名・同じ型（{@code MapItem.getMapId} が読む）。 */
+    /** 写真の像。{@link PhotoImage} を丸ごと持つ。 */
+    public static final String PHOTO = "OgpPhoto";
+
+    /**
+     * 0.1.2 までの写真の像（map id）。vanilla filled_map と同じキー名・同じ型。
+     *
+     * <p>0.1.3 からの写真は {@link #PHOTO} に像そのものを持つ。既存のワールドに残っている
+     * 写真を壊さないため、読む側だけこのキーも見る（新しく書くことはない）。
+     */
     public static final String MAP_ID = "map";
 
     /** 板の工程状態。 */
@@ -143,8 +151,17 @@ public final class OgpNbt {
         return tag.getInt(MAP_ID);
     }
 
-    public static void setMapId(ItemStack stack, int id) {
-        stack.getOrCreateTag().putInt(MAP_ID, id);
+    /** 像。無ければ null（0.1.2 までの写真か、まだ現像していない板）。 */
+    public static @Nullable PhotoImage photo(ItemStack stack) {
+        CompoundTag tag = stack.getTag();
+        if (tag == null || !tag.contains(PHOTO, 10)) {
+            return null;
+        }
+        return PhotoImage.load(tag.getCompound(PHOTO));
+    }
+
+    public static void setPhoto(ItemStack stack, PhotoImage image) {
+        stack.getOrCreateTag().put(PHOTO, image.save(new CompoundTag()));
     }
 
     public static void setCredit(ItemStack stack, @Nullable PhotoCredit credit) {
