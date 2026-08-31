@@ -92,4 +92,15 @@ public final class OgpDataComponents {
     public static void init(IEventBus modBus) {
         COMPONENTS.register(modBus);
     }
+
+    /**
+     * 仕上がった写真の像。地図データを使わなくなったので、写真アイテム自身がここに持つ。
+     * {@link LatentImage} と同じく stream codec は置かない（NBT 同期に任せる）。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<PhotoImage>> PHOTO_IMAGE =
+            COMPONENTS.register("photo_image",
+                    () -> DataComponentType.<PhotoImage>builder()
+                            .persistent(PhotoImage.CODEC)
+                            .build());
+
 }

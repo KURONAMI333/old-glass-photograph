@@ -322,14 +322,9 @@ public final class PhotographViewer {
 
         // 写真そのもの。map の動的テクスチャは NEAREST で貼られるので、
         // 整数倍ならドットは滲まない。
-        // （26.x の getMapTextureManager().prepareMapTexture の代わりに自前の
-        //   PlateTextures レジストリへ引き当てる。1.21.1 の MapRenderer は
-        //   テクスチャを内部に隠すため mod 側から RL を引けない）
-        ResourceLocation texture = PlateTextures.BLANK;
-        MapId id = stack.get(DataComponents.MAP_ID);
-        if (id != null) {
-            texture = PlateTextures.texture(id, level.getMapData(id));
-        }
+        // 26.x の PhotoTextures.resolve に相当。1.21.1 では PlateTextures が
+        // コンポーネント持ちの像と地図由来の像の両方を引き当てる。
+        ResourceLocation texture = PlateTextures.resolve(stack);
         graphics.blit(texture,
                 layout.photoX(), layout.photoY(),
                 layout.photoSize(), layout.photoSize(),

@@ -247,13 +247,6 @@ public final class PhotographHandRenderer {
 
     /** 像が client に届いていれば動的テクスチャ、まだなら BLANK。 */
     private static ResourceLocation texture(ItemStack stack) {
-        MapId id = stack.get(DataComponents.MAP_ID);
-        if (id == null) {
-            return PlateTextures.BLANK;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        ClientLevel level = minecraft.level;
-        MapItemSavedData data = level == null ? null : level.getMapData(id);
-        return PlateTextures.texture(id, data);
+        return PlateTextures.resolve(stack);
     }
 }

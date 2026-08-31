@@ -24,7 +24,8 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
  * {@code translate(-0.5,-0.5,-0.5)} を済ませた後に {@code renderByItem} を呼ぶので、
  * 頂点は 26.x 版と同じ「ブロック空間 0..1 の板」でよい。
  *
- * <p>画素は vanilla の map saved data に載っているので、{@link PlateTextures} から
+ * <p>画素は写真アイテムのコンポーネントに載っているので（0.1.2 までの写真は map saved data）、
+ * {@link PlateTextures} から
  * 動的テクスチャを取り出して {@code RenderType.text(texture)} の板 1 枚に貼る。
  * vanilla {@code MapRenderer} が額縁と一人称でやっているのと同じ板である。
  *
@@ -53,13 +54,7 @@ public final class PhotographItemRenderer extends BlockEntityWithoutLevelRendere
     @Override
     public void renderByItem(ItemStack stack, ItemDisplayContext displayContext, PoseStack poseStack,
                              MultiBufferSource buffer, int light, int overlay) {
-        MapId id = stack.get(DataComponents.MAP_ID);
-        ResourceLocation texture = PlateTextures.BLANK;
-        if (id != null) {
-            net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
-            MapItemSavedData data = level == null ? null : level.getMapData(id);
-            texture = PlateTextures.texture(id, data);
-        }
+        ResourceLocation texture = PlateTextures.resolve(stack);
         VertexConsumer vc = buffer.getBuffer(RenderType.text(texture));
         // 表（+Z 向き）。map の行 0 が上なので v は y を反転させる。
         vc.addVertex(poseStack.last().pose(), 0.0F, 0.0F, PLANE_Z).setColor(-1).setUv(0.0F, 1.0F).setLight(light);

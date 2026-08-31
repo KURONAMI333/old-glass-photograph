@@ -24,6 +24,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -34,6 +36,9 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Marker;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +58,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>露光は 1 枚の撮影ではなく、窓のあいだの複数フレームの輝度平均。</b>
  * 実物の湿板写真で動体が消えるのは露光中の光を平均するからで、同じ原理をそのまま置いている。
- * 各フレームは撮った直後に 128x128 gray へ落としてから累積する（フル解像度で累積しない）。
+ * 各フレームは撮った直後に {@link LatentImage#DIM} 角の gray へ落としてから累積する（フル解像度で累積しない）。
  * 量子化は server 側の現像で 1 回だけ行う。
  *
  * <p>撮影点はレンダーのレベル描画の終端。この時点の mainRenderTarget には
@@ -122,6 +127,12 @@ public final class PhotoCaptureClient {
      * 満ちる時刻を割り出せたりすると、それは数値・進捗の割合を出したのと同じになる
      * （{@code MODJAM_DECISIONS_OGP.md} §15）。この拍から読めるのは「時間が進んでいる」だけ。
      */
+    /** 光の読みを出しておく長さ（tick）。構図の邪魔になるので出しっぱなしにしない。 */
+    private static final int READING_HOLD_TICKS = 60;
+
+    /** 上の後に薄れて消えるまでの長さ（tick）。 */
+    private static final int READING_FADE_TICKS = 20;
+
     private static final int TICK_INTERVAL = 20;
 
     /** 時計の音。手元の小さな音なので通さない。 */
@@ -606,14 +617,39 @@ public final class PhotoCaptureClient {
         if (phase != Phase.PEEK || current == null) {
             return;
         }
+        // 覗いてから数秒で消す（2026-08-31 kura「写真取るのに邪魔だぜ」）。
+        // 読みは覗いた時に 1 回決まって以後変わらないので、経過 tick だけで足りる。
+        int alpha = 255;
+        if (peekElapsed >= READING_HOLD_TICKS) {
+            int fade = peekElapsed - READING_HOLD_TICKS;
+            if (fade >= READING_FADE_TICKS) {
+                return;
+            }
+            alpha = 255 * (READING_FADE_TICKS - fade) / READING_FADE_TICKS;
+        }
         Font font = Minecraft.getInstance().font;
-        Component line = current.line();
-        int width = font.width(line);
-        // 1.21.1 の pose() は PoseStack（26.x の Matrix3x2fStack とは API が違うが、
-        // 「GUI 座標系へ平行移動する」意味論は同じ。2D 移動は z=0 で表現する）。
+        // 開口の幅で折り返す。1 行で描くと長い読みが画面の外へ出る
+        // （実測 2026-08-31: bright + shoot_hint の 104 文字が 1920x1080 の既定スケールで左右にはみ出した）。
+        int maxWidth = Math.max(160, Math.min(open.side(), w) - 24);
+        List<Component> lines = new ArrayList<>();
+        // 1.21.1 の Font に splitIgnoringLanguage は無い。分割器を直に使う（CJK も切れる）。
+        for (FormattedText part : font.getSplitter().splitLines(current.line(), maxWidth, Style.EMPTY)) {
+            lines.add(Component.literal(part.getString()));
+        }
+        if (lines.isEmpty()) {
+            lines.add(current.line());
+        }
+        int step = font.lineHeight + 2;
         graphics.pose().pushPose();
         graphics.pose().translate(w / 2.0F, open.bottom() - Math.max(24, open.side() / 12.0F), 0.0F);
-        graphics.drawStringWithBackdrop(font, line, -width / 2, -4, width, 0xFFFFFFFF);
+        // 最後の行が、折り返しが無かった時と同じ高さに来るように上へ積む。
+        int top = -4 - step * (lines.size() - 1);
+        for (int i = 0; i < lines.size(); i++) {
+            Component part = lines.get(i);
+            int width = font.width(part);
+            graphics.drawStringWithBackdrop(font, part, -width / 2, top + step * i, width,
+                    (alpha << 24) | 0x00FFFFFF);
+        }
         graphics.pose().popPose();
     }
 
@@ -853,22 +889,22 @@ public final class PhotoCaptureClient {
     }
 
     /**
-     * 生フレーム -&gt; 中央正方形クロップ -&gt; 128x128 -&gt; 8bit gray を SUM へ加算。
+     * 生フレーム -&gt; 中央正方形クロップ -&gt; {@link LatentImage#DIM} 角 -&gt; 8bit gray を SUM へ加算。
      *
      * <p>切り出しは {@link ViewfinderGeometry#crop} が決める。ファインダーの開口も同じ関数から
      * 出るので、<b>覗いた構図と撮れる構図が食い違う経路が無い</b>。
      */
     private static void accumulate(NativeImage img) throws Exception {
         ViewfinderGeometry.Square c = ViewfinderGeometry.crop(img.getWidth(), img.getHeight());
-        try (NativeImage small = new NativeImage(128, 128, false)) {
+        try (NativeImage small = new NativeImage(LatentImage.DIM, LatentImage.DIM, false)) {
             img.resizeSubRectTo(c.x(), c.y(), c.side(), c.side(), small);
-            for (int y = 0; y < 128; y++) {
-                for (int x = 0; x < 128; x++) {
+            for (int y = 0; y < LatentImage.DIM; y++) {
+                for (int x = 0; x < LatentImage.DIM; x++) {
                     int argb = small.getPixelRGBA(x, y);
                     int r = (argb >> 16) & 0xFF;
                     int g = (argb >> 8) & 0xFF;
                     int b = argb & 0xFF;
-                    SUM[x + y * 128] += (r * 299 + g * 587 + b * 114) / 1000;
+                    SUM[x + y * LatentImage.DIM] += (r * 299 + g * 587 + b * 114) / 1000;
                 }
             }
         }
