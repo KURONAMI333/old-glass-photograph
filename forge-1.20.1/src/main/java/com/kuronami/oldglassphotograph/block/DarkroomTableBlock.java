@@ -20,6 +20,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -112,6 +113,15 @@ public class DarkroomTableBlock extends BaseEntityBlock {
                 .setValue(FACING, Direction.NORTH)
                 .setValue(OPEN, false)
                 .setValue(CONTENT, Content.EMPTY));
+    }
+
+    /**
+     * {@code BaseEntityBlock} の既定は {@code INVISIBLE}（1.20.1 jar の bytecode 実測）で、
+     * blockstate のモデルが一切描かれない。26.x にこの既定は無いので、移植でここが落ちていた。
+     */
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
     }
 
     @Override
