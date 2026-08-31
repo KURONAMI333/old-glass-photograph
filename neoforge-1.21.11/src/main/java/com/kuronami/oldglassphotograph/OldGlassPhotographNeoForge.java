@@ -46,6 +46,7 @@ public final class OldGlassPhotographNeoForge {
                 OgpDataComponents.LATENT_IMAGE::get,
                 OgpDataComponents.PLATE_PROCESS::get,
                 OgpDataComponents.PLATE_FOG::get,
-                OgpDataComponents.PHOTO_CREDIT::get);
+                OgpDataComponents.PHOTO_CREDIT::get,
+                OgpDataComponents.PHOTO_IMAGE::get);
     }
 }
