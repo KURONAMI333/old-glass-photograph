@@ -57,7 +57,7 @@ public final class OldGlassPhotographFabricClient implements ClientModInitialize
                 });
 
         // --- 送信口（client -> server）。
-        OgpNet.wire(new OgpNet.Sink() {
+        OgpNet.wireClient(new OgpNet.Sink() {
             @Override
             public void sendToPlayer(ServerPlayer player, ResourceLocation channel, FriendlyByteBuf buf) {
                 // client 側では server -> player 経路を使わない（握り潰す）。

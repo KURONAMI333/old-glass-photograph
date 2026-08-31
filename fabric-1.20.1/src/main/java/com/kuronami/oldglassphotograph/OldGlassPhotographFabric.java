@@ -46,7 +46,7 @@ public final class OldGlassPhotographFabric implements ModInitializer {
         });
 
         // --- 送信口 ---
-        OgpNet.wire(new OgpNet.Sink() {
+        OgpNet.wireServer(new OgpNet.Sink() {
             @Override
             public void sendToPlayer(ServerPlayer player, ResourceLocation channel, FriendlyByteBuf buf) {
                 ServerPlayNetworking.send(player, channel, buf);
@@ -76,6 +76,6 @@ public final class OldGlassPhotographFabric implements ModInitializer {
                 });
 
         // --- server 落下時に送信フックを外す（次の world に古い sink を残さない）。
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> OgpNet.wire(null));
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> OgpNet.wireServer(null));
     }
 }
