@@ -103,16 +103,14 @@ public final class OgpNet {
         if (current == null) {
             return;
         }
+        // 解放しない。パケットがこのバッファを持ったまま後で書き出すので、
+        // 送信直後に release すると中身が消える（Fabric の送信は buf を渡し切る形）。
         FriendlyByteBuf buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
-        try {
-            writer.accept(buf);
-            if (player != null) {
-                current.sendToPlayer(player, channel, buf);
-            } else {
-                current.sendToServer(channel, buf);
-            }
-        } finally {
-            buf.release();
+        writer.accept(buf);
+        if (player != null) {
+            current.sendToPlayer(player, channel, buf);
+        } else {
+            current.sendToServer(channel, buf);
         }
     }
 }

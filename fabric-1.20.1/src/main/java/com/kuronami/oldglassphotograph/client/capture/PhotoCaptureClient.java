@@ -571,12 +571,18 @@ public final class PhotoCaptureClient {
         int top = lastY - step * (lines.size() - 1);
         int backdrop = (LINE_BACKDROP_COLOR & 0x00FFFFFF)
                 | ((((LINE_BACKDROP_COLOR >>> 24) * alpha / 255) & 0xFF) << 24);
+        // 背景は行ごとでなく塊で 1 枚。行ごとに敷くと幅が揃わず、行間の隙間で階段に見える。
+        int widest = 0;
+        for (FormattedCharSequence part : lines) {
+            widest = Math.max(widest, font.width(part));
+        }
+        graphics.fill(w / 2 - widest / 2 - 3, top - 3,
+                w / 2 + widest / 2 + 3, top + step * (lines.size() - 1) + font.lineHeight + 1, backdrop);
         for (int i = 0; i < lines.size(); i++) {
             FormattedCharSequence part = lines.get(i);
             int width = font.width(part);
-            int y = top + step * i;
-            graphics.fill(w / 2 - width / 2 - 2, y - 3, w / 2 + width / 2 + 2, y + 5, backdrop);
-            graphics.drawString(font, part, w / 2 - width / 2, y, (alpha << 24) | 0x00FFFFFF);
+            graphics.drawString(font, part, w / 2 - width / 2, top + step * i,
+                    (alpha << 24) | 0x00FFFFFF);
         }
     }
 
