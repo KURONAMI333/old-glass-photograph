@@ -21,12 +21,11 @@ import org.jetbrains.annotations.Nullable;
  * （26.x の items/glass_plate.json でも露光済みは感光と同じ絵だった）。
  * component が付いていない（＝素のガラス板）場合は 0 を返し、親モデル自身の絵が出る。
  *
- * <p>predicate の一致は「下限以上」で、{@code ItemOverrides} は JSON の配列を
- * 逆順に積んで先頭から試す（コンストラクタが {@code size()-1} から減らす・
- * 1.20.1 の Fabric / Forge 47.4.13 の bytecode で確認済み）。つまり
- * <b>JSON の末尾が最初に照合される</b>ので、models/item/glass_plate.json の overrides は
- * sensitized(1) → developed(2) の昇順に並べる。降順にすると stage 2 の板が
- * 先に 1 の override に当たって感光済みの絵になる。
+ * <p><b>この帯はしきい値 1 本（0/1/2）で出しているので、overrides の並び順に結果が依存する。</b>
+ * 「2 の板が 1 の override にも当たる」ため、どちらが先に照合されるかで絵が変わる。
+ * 1.20.1 では実機で昇順・降順の両方が外れたので、段階ごとに独立した 0/1 の property を出す形へ
+ * 作り替えた（`plate_developed` / `plate_sensitized`）。**この帯は現像済みの板の絵を実機で
+ * 見ていない。** 見て外れていたら、並び順を触らずに 1.20.1 と同じ形へ寄せる。
  */
 public final class PlateStageProperty {
 
