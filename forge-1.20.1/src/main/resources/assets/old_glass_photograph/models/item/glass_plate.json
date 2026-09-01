@@ -6,15 +6,15 @@
   "overrides": [
     {
       "predicate": {
-        "old_glass_photograph:plate_stage": 2
-      },
-      "model": "old_glass_photograph:item/glass_plate_developed"
-    },
-    {
-      "predicate": {
         "old_glass_photograph:plate_stage": 1
       },
       "model": "old_glass_photograph:item/glass_plate_sensitized"
+    },
+    {
+      "predicate": {
+        "old_glass_photograph:plate_stage": 2
+      },
+      "model": "old_glass_photograph:item/glass_plate_developed"
     }
   ]
 }
