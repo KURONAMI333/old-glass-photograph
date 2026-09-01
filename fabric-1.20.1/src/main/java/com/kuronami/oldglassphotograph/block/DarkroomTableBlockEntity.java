@@ -174,7 +174,7 @@ public class DarkroomTableBlockEntity extends BlockEntity {
         Direction front = state.getValue(DarkroomTableBlock.FACING);
         double x = pos.getX() + 0.5 + front.getStepX() * 0.45;
         double z = pos.getZ() + 0.5 + front.getStepZ() * 0.45;
-        server.sendParticles(ParticleTypes.SMOKE, x, pos.getY() + FUME_Y, z,
+        server.sendParticles(ParticleTypes.CLOUD, x, pos.getY() + FUME_Y, z,
                 1, 0.12, 0.0, 0.12, 0.0);
     }
 

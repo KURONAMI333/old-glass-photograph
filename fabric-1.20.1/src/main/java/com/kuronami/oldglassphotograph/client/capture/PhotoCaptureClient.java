@@ -257,6 +257,9 @@ public final class PhotoCaptureClient {
         if (phase != Phase.IDLE) {
             return;
         }
+        // この帯は覗いている間も vanilla の HUD が出たままなので（hideGui が mod の HUD ごと
+        // 消してしまう）、直前のアクションのメッセージだけ先に消す。残っていると読みの文と重なる。
+        mc.gui.setOverlayMessage(Component.empty(), false);
         token = 0;
         basePos = payload.basePos();
         lensPos = payload.lensPos();
