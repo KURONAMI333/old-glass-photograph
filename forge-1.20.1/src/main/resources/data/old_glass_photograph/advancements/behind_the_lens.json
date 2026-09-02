@@ -16,7 +16,9 @@
           {
             "condition": "minecraft:match_tool",
             "predicate": {
-              "items": "old_glass_photograph:glass_plate"
+              "items": [
+                "old_glass_photograph:glass_plate"
+              ]
             }
           }
         ]
