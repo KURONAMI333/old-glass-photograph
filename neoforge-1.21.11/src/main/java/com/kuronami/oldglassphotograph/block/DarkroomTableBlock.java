@@ -327,9 +327,13 @@ public class DarkroomTableBlock extends BaseEntityBlock {
             return Content.EMPTY;
         }
         PlateProcess process = GlassPlateItem.process(plate);
-        return process != null && process.stage() == PlateProcess.Stage.DEVELOPED
-                ? Content.PHOTO
-                : Content.PLATE;
+        if (process == null) {
+            return Content.PLATE;
+        }
+        return switch (process.stage()) {
+            case SENSITIZED, EXPOSED -> Content.SENSITIZED;
+            case DEVELOPED -> Content.PHOTO;
+        };
     }
 
     private static void playLid(Level level, BlockPos pos, boolean opening) {
@@ -347,9 +351,11 @@ public class DarkroomTableBlock extends BaseEntityBlock {
     /** 蓋を開けたときに見えるもの。 */
     public enum Content implements StringRepresentable {
         EMPTY("empty"),
-        /** まだ像の無い板（塗布済み、または塗布待ちで入れた素のガラス）。 */
+        /** 塗布待ちで入れた素のガラス板。 */
         PLATE("plate"),
-        /** 現像が済んで像の出た板。 */
+        /** コロジオンを塗った板と、露光して潜像を持つ板。アイテム側と同じで絵は共通。 */
+        SENSITIZED("sensitized"),
+        /** 現像が済んで像の出た板。blockstate の値名は既存のワールドに合わせて photo のまま。 */
         PHOTO("photo");
 
         private final String name;
