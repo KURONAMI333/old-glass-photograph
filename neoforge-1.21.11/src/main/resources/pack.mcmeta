@@ -2,6 +2,8 @@
   "pack": {
     "description": "Old Glass Photograph resources",
     "pack_format": 75,
-    "supported_formats": [75, 81]
+    "supported_formats": [75, 81],
+    "min_format": 75,
+    "max_format": 81
   }
 }
