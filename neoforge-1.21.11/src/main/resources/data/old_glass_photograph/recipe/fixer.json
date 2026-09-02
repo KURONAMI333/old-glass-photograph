@@ -1,10 +1,7 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    [
-      "minecraft:dried_kelp",
-      "minecraft:sulfur"
-    ],
+    "minecraft:dried_kelp",
     "minecraft:glass_bottle"
   ],
   "result": {
