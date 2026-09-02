@@ -7,6 +7,7 @@ modId="${mod_id}"
 version="${version}"
 displayName="${mod_name}"
 displayURL = "https://github.com/KURONAMI333/old-glass-photograph"
+issueTrackerURL = "https://github.com/KURONAMI333/old-glass-photograph/issues"
 iconFile="${mod_id}.png"
 authors="${mod_author}"
 description='''${description}'''
