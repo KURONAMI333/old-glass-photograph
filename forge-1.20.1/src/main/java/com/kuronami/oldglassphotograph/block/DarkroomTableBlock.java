@@ -215,8 +215,9 @@ public class DarkroomTableBlock extends BaseEntityBlock {
                     : "message.old_glass_photograph.darkroom.occupied"));
             return InteractionResult.CONSUME;
         }
-        table.insertPlate(stack.split(1));
-        level.setBlock(pos, state.setValue(CONTENT, Content.PLATE), Block.UPDATE_ALL);
+        ItemStack inserted = stack.split(1);
+        table.insertPlate(inserted);
+        level.setBlock(pos, state.setValue(CONTENT, contentOf(inserted)), Block.UPDATE_ALL);
         // 次に何をすればいいかを、薬品の名前まで込みで言う（§32-1 で「手に持つ」が条件になった）。
         say(player, Component.translatable("message.old_glass_photograph.darkroom.plate_in",
                 step.chemicalName()));
