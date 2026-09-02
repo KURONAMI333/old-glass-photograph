@@ -1,11 +1,11 @@
 {
   "criteria": {
-    "has_copper_nugget": {
+    "has_copper_ingot": {
       "conditions": {
         "items": [
           {
             "items": [
-              "minecraft:copper_nugget"
+              "minecraft:copper_ingot"
             ]
           }
         ]
@@ -34,7 +34,7 @@
   "parent": "minecraft:recipes/root",
   "requirements": [
     [
-      "has_copper_nugget",
+      "has_copper_ingot",
       "has_sugar",
       "has_the_recipe"
     ]
