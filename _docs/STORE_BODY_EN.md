@@ -36,4 +36,6 @@ Made for ModJam 2026 (Echoes of the Past).
 
 Source: https://github.com/KURONAMI333/old-glass-photograph
 
+Bugs and questions: comment on the CurseForge page, or DM @kuronami333 on X.
+
 All Rights Reserved. Modpack inclusion is allowed without permission or credit.
