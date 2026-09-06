@@ -60,8 +60,12 @@ import org.slf4j.LoggerFactory;
  * 各フレームは撮った直後に {@link LatentImage#DIM} 角の gray へ落としてから累積する（フル解像度で累積しない）。
  * 量子化は server 側の現像で 1 回だけ行う。
  *
- * <p>撮影点はレンダーのレベル描画の終端。この時点の mainRenderTarget には
- * 手も HUD も GUI も入っていない（MODJAM_SPIKE_RESULT.md a 節）。
+ * <p>撮影点は {@code GameRenderer#render} の中で {@code renderLevel} が<b>戻った直後</b>。
+ * この時点の mainRenderTarget には手も HUD も GUI も入っていない（MODJAM_SPIKE_RESULT.md a 節）。
+ * <b>レベル描画の内側（frame graph の main pass の末尾）では撮らない</b>——
+ * シェーダー MOD（Iris）はレベルの絵を自前の framebuffer へ描き、
+ * mainRenderTarget へ合成し戻すのは {@code LevelRenderer#render} の末尾なので、
+ * main pass の中で撮ると<b>クリア直後の真っ白</b>が写る（CF 報告 kirrkirrka 2026-09-05）。
  * {@code Screenshot#takeScreenshot} は<b>その場でコピー命令を積む</b>
  * （{@code createCommandEncoder().copyTextureToBuffer}）ので、後から GUI を描いても写真に入らない。
  * ファインダーの枠・暗幕・キャップの塗り潰しはすべてこの性質に乗っている。
@@ -73,6 +77,14 @@ import org.slf4j.LoggerFactory;
 public final class PhotoCaptureClient {
 
     private static final Logger LOG = LoggerFactory.getLogger("ogp");
+
+    /**
+     * 撮影点の中身を log へ出すか（{@code -Dogp.captureDebug=true}）。
+     *
+     * <p>切っている間は測定用のコピー命令を 1 つも積まない。開発の run 設定だけで立て、
+     * 配布 jar では常に false になる。
+     */
+    private static final boolean CAPTURE_DEBUG = Boolean.getBoolean("ogp.captureDebug");
 
     /** 写真の固定 FOV（垂直・度）。バニラの FOV スライダー既定値と同じ 70。 */
     public static final float PHOTO_FOV = 70.0F;
@@ -275,6 +287,8 @@ public final class PhotoCaptureClient {
     private static int sessionId;
     private static int resultFrames;
     private static int resultExposeTicks;
+    /** 露光ごとに 1 回だけ、旧撮影点（レベル描画の内側）の絵を測って log へ出す。 */
+    private static boolean probeDue;
 
     private PhotoCaptureClient() {
     }
@@ -398,6 +412,7 @@ public final class PhotoCaptureClient {
         shutterRequested = false;
         shutterQueued = false;
         captureDue = true; // 露光の 1 枚目は窓の頭で撮る
+        probeDue = CAPTURE_DEBUG;
         phase = Phase.EXPOSING;
 
         // キャップが外れる。低く短い一打。
@@ -867,7 +882,12 @@ public final class PhotoCaptureClient {
         mc.level.playLocalSound(lensPos, sound, SoundSource.BLOCKS, volume, pitch, false);
     }
 
-    /** レベル描画の終端。露光の 1 フレームを mainRenderTarget から落とす。 */
+    /**
+     * {@code renderLevel} が戻った直後。露光の 1 フレームを mainRenderTarget から落とす。
+     *
+     * <p>呼ぶ位置は「レベルの絵が main へ出揃い、GUI がまだ乗っていない」1 点。
+     * ここより早い（レベル描画の内側の）位置で撮ってはいけない——クラスの javadoc 参照。
+     */
     public static void onLevelRenderEnd() {
         if (phase != Phase.EXPOSING || !captureDue) {
             return;
@@ -878,13 +898,16 @@ public final class PhotoCaptureClient {
         final int session = sessionId;
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), img -> {
             // ここは同フレームでは走らない（実測: dispatch の約 1 フレーム後）。
-            // ただしコピー命令は dispatch 時点で積まれているので、中身は AfterLevel の絵。
+            // ただしコピー命令は dispatch 時点で積まれているので、中身は dispatch 時点の絵。
             if (session != sessionId) {
                 // 中止した露光の遅れて届いたコールバック。次の露光の累積を汚さない。
                 img.close();
                 return;
             }
             try {
+                if (idx == 0 && CAPTURE_DEBUG) {
+                    LOG.info("[ogp] frame0 after renderLevel: {}", describe(img));
+                }
                 accumulate(img);
             } catch (Throwable t) {
                 LOG.error("[ogp] capture accumulation failed on frame {}", idx, t);
@@ -894,6 +917,60 @@ public final class PhotoCaptureClient {
             framesCompleted++;
             tryFinalize();
         });
+    }
+
+    /**
+     * 旧撮影点（レベル描画の内側＝frame graph の main pass の末尾）の絵を測るだけの窓口。
+     *
+     * <p>撮影には一切使わない。露光 1 回につき 1 フレームだけ、同じ mainRenderTarget が
+     * その時点で何を持っているかを log へ出す。シェーダーを入れた時に真っ白が写る
+     * 経路（CF 報告 kirrkirrka 2026-09-05）を、実機の値で確かめ続けるために残している。
+     * {@code -Dogp.captureDebug=true} が無ければ 1 命令も積まない。
+     */
+    public static void probeLevelPassEnd() {
+        if (phase != Phase.EXPOSING || !probeDue) {
+            return;
+        }
+        probeDue = false;
+        Minecraft mc = Minecraft.getInstance();
+        final int session = sessionId;
+        Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), img -> {
+            try {
+                if (session == sessionId) {
+                    LOG.info("[ogp] frame0 inside level pass: {}", describe(img));
+                }
+            } catch (Throwable t) {
+                LOG.warn("[ogp] probe failed", t);
+            } finally {
+                img.close();
+            }
+        });
+    }
+
+    /** 撮れた絵の素性を 1 行にする（寸法・中央の輝度平均・角と中心の実 ARGB）。 */
+    private static String describe(NativeImage img) {
+        ViewfinderGeometry.Square c = ViewfinderGeometry.crop(img.getWidth(), img.getHeight());
+        long sum = 0;
+        int n = 0;
+        int min = 255;
+        int max = 0;
+        for (int y = c.y(); y < c.y() + c.side(); y += 16) {
+            for (int x = c.x(); x < c.x() + c.side(); x += 16) {
+                int argb = img.getPixel(x, y);
+                int gray = ((((argb >> 16) & 0xFF) * 299)
+                        + (((argb >> 8) & 0xFF) * 587)
+                        + ((argb & 0xFF) * 114)) / 1000;
+                sum += gray;
+                n++;
+                min = Math.min(min, gray);
+                max = Math.max(max, gray);
+            }
+        }
+        return String.format(
+                "%dx%d crop=(%d,%d,%d) gray avg=%d min=%d max=%d center=%08X",
+                img.getWidth(), img.getHeight(), c.x(), c.y(), c.side(),
+                n == 0 ? -1 : (int) (sum / n), min, max,
+                img.getPixel(img.getWidth() / 2, img.getHeight() / 2));
     }
 
     /**

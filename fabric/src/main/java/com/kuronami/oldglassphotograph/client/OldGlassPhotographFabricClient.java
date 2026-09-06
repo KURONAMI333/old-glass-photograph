@@ -50,8 +50,10 @@ public final class OldGlassPhotographFabricClient implements ClientModInitialize
             PhotographViewer.endClientTick();
         });
 
-        // 撮影点。NeoForge の RenderLevelStageEvent.AfterLevel 相当（レベル描画の終端＝HUD/GUI 合成前）。
-        LevelRenderEvents.END_MAIN.register(context -> PhotoCaptureClient.onLevelRenderEnd());
+        // 撮影点は GameRendererCaptureMixin（renderLevel が戻った直後）。END_MAIN では撮らない——
+        // あれはレベル描画の内側なので、Iris を入れると main にはまだ絵が入っていない。
+        // ここで END_MAIN に残しているのは、その旧位置が実際に何を持っているかを測る probe だけ。
+        LevelRenderEvents.END_MAIN.register(context -> PhotoCaptureClient.probeLevelPassEnd());
 
         // 製図台 menu への写真よけ（client 側。ちらつき防止）。ScreenEvent.Init.Post 相当。
         ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) ->
