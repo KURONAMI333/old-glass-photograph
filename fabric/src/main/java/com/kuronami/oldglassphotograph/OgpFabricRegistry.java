@@ -1,5 +1,6 @@
 package com.kuronami.oldglassphotograph;
 
+import com.kuronami.oldglassphotograph.block.CreativeCameraBlock;
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlock;
 import com.kuronami.oldglassphotograph.block.DarkroomTableBlockEntity;
 import com.kuronami.oldglassphotograph.block.WetPlateCameraBlock;
@@ -56,6 +57,18 @@ public final class OgpFabricRegistry {
     public static final Item WET_PLATE_CAMERA_ITEM = registerItem("wet_plate_camera",
             properties -> new WetPlateCameraBlockItem(WET_PLATE_CAMERA, properties.useBlockDescriptionPrefix()));
 
+    /**
+     * 撮影用のカメラ。<b>出荷物には入らない</b>（dev/creative-camera ブランチ限定）。
+     * 見た目・当たり判定は通常のカメラと同じで、モデルも同じものを指す。
+     * NeoForge 側（OgpRegistry.CREATIVE_CAMERA）と同じ id・同じ既定値。
+     */
+    public static final CreativeCameraBlock CREATIVE_CAMERA = registerBlock("creative_camera",
+            CreativeCameraBlock::new,
+            () -> BlockBehaviour.Properties.of().strength(1.5F).sound(SoundType.WOOD).noOcclusion());
+
+    public static final Item CREATIVE_CAMERA_ITEM = registerItem("creative_camera",
+            properties -> new WetPlateCameraBlockItem(CREATIVE_CAMERA, properties.useBlockDescriptionPrefix()));
+
     public static final DarkroomTableBlock DARKROOM_TABLE = registerBlock("darkroom_table",
             DarkroomTableBlock::new,
             () -> BlockBehaviour.Properties.of().strength(2.0F).sound(SoundType.WOOD).noOcclusion());
@@ -88,7 +101,8 @@ public final class OgpFabricRegistry {
     // 26.2 vanilla の BlockEntityType は (BlockEntitySupplier, Set<Block>) のみ。
     public static final BlockEntityType<WetPlateCameraBlockEntity> CAMERA_BLOCK_ENTITY = register(
             Registries.BLOCK_ENTITY_TYPE, "wet_plate_camera",
-            new BlockEntityType<>(WetPlateCameraBlockEntity::new, Set.of(WET_PLATE_CAMERA)));
+            new BlockEntityType<>(WetPlateCameraBlockEntity::new,
+                    Set.of(WET_PLATE_CAMERA, CREATIVE_CAMERA)));
 
     public static final BlockEntityType<DarkroomTableBlockEntity> DARKROOM_TABLE_BLOCK_ENTITY = register(
             Registries.BLOCK_ENTITY_TYPE, "darkroom_table",
