@@ -47,12 +47,14 @@ import org.slf4j.LoggerFactory;
  * <p><b>露光は 1 枚の撮影ではなく、窓のあいだの複数フレームの輝度平均。</b>
  * 実物の湿板写真で動体が消えるのは露光中の光を平均するからで、同じ原理をそのまま置いている。
  *
- * <p>撮影点はレンダーのレベル描画の終端。この時点の mainRenderTarget には
- * 手も HUD も GUI も入っていない。{@code Screenshot#takeScreenshot(RenderTarget)} は
- * 同期版（1.20.1 jar 実測・RESOLUTION #1）で、呼び出した時点でコピー完了。
+ * <p>撮影点は {@code LevelRenderer#renderLevel} が戻った直後（GameRendererCaptureMixin）。
+ * この時点の mainRenderTarget には手も HUD も GUI も入っていない。
+ * {@code Screenshot#takeScreenshot(RenderTarget)} は同期版（1.20.1 jar 実測・RESOLUTION #1）で、
+ * 呼び出した時点でコピー完了。<b>レベル描画の内側では撮らない</b>——シェーダー MOD は
+ * そこではまだ main へ合成し戻していない（GameRendererCaptureMixin の javadoc）。
  *
  * <p><b>ローダー配線との境界</b>: このクラスはローダー型を 1 つも import しない。
- * ローダー側（Fabric: HudRenderCallback / WorldRenderEvents.END / mixin 類）が
+ * ローダー側（Fabric: HudRenderCallback / GameRendererCaptureMixin / mixin 類）が
  * payload 受信・tick・レベル描画終端・カメラ・入力抑止をここへ委譲する。
  */
 public final class PhotoCaptureClient {
@@ -505,8 +507,8 @@ public final class PhotoCaptureClient {
      * として登録される。この callback は vanilla の {@code hudVisible} で包まれないため、
      * HUD を隠したままでも描かれる。
      *
-     * <p>ここで描いたものは写真に写り込まない。撮影はレベル描画の終端
-     * （{@code WorldRenderEvents.END}）でコピー済みだから。
+     * <p>ここで描いたものは写真に写り込まない。撮影は {@code LevelRenderer#renderLevel} が
+     * 戻った直後（{@code GameRendererCaptureMixin}）でコピー済みだから。
      */
     public static void renderViewfinder(GuiGraphics graphics, float tickDelta) {
         if (phase == Phase.IDLE) {

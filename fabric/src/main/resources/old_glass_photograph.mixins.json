@@ -9,6 +9,7 @@
   ],
   "client": [
     "CameraMixin",
+    "GameRendererCaptureMixin",
     "ItemInHandRendererMixin",
     "MinecraftInteractionMixin",
     "GuiSetScreenMixin",
