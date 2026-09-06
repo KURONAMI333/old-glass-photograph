@@ -12,7 +12,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,7 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
  * <p>NeoForge（1.21.1 セル）→ Fabric 1.20.1 の対応:
  * <ul>
  *   <li>RegisterGuiLayersEvent → {@code HudRenderCallback}（引数は GuiGraphics + 部分 tick）</li>
- *   <li>RenderLevelStageEvent.AfterLevel → {@code WorldRenderEvents.END}
+ *   <li>RenderLevelStageEvent.AfterLevel → {@code GameRendererCaptureMixin}
  *       （この帯に LevelRenderEvents は無い。END はレベル描画の終端・HUD/GUI 合成前で同意味）</li>
  *   <li>ClientTickEvent.Post ×3 リスナ → {@code ClientTickEvents.END_CLIENT_TICK} ×1 に同順で委譲</li>
  *   <li>ViewportEvent 系 / 入力抑止 / 画面開始 / 手持ち差し替え → mixin（mixin パッケージ参照）</li>
@@ -76,8 +75,9 @@ public final class OldGlassPhotographFabricClient implements ClientModInitialize
             PhotographViewer.endClientTick();
         });
 
-        // --- レベル描画終端での撮影（GUI 合成前）。
-        WorldRenderEvents.END.register(context -> PhotoCaptureClient.onLevelRenderEnd());
+        // --- 撮影点は GameRendererCaptureMixin（LevelRenderer#renderLevel が戻った直後）。
+        // WorldRenderEvents.END では撮らない——あれはレベル描画の内側で、
+        // Iris の合成し戻しと同じ命令位置を取り合う（GameRendererCaptureMixin の javadoc）。
 
         // --- HUD レイヤ（viewfinder / photograph_view）。
         HudRenderCallback.EVENT.register(PhotoCaptureClient::renderViewfinder);

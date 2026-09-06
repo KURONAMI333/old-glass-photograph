@@ -29,6 +29,11 @@ loom {
             setConfigName('Fabric Client')
             ideConfigGenerated(true)
             runDir('runs/client')
+            // 撮影点の中身を log へ出す。-PogpCaptureDebug を付けた時だけ。
+            // シェーダー（Iris）を入れた時に旧撮影点が何を持っているかを実機で測るための口。
+            if (project.hasProperty('ogpCaptureDebug')) {
+                vmArg('-Dogp.captureDebug=true')
+            }
         }
         server {
             server()
