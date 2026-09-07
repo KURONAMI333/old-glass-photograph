@@ -32,6 +32,20 @@ neoForge {
     }
 }
 
+repositories {
+    maven {
+        url = 'https://api.modrinth.com/maven'
+    }
+}
+
+dependencies {
+    // Jade tooltip（カメラ・暗室台の状態表示）。compileOnly = soft-dep。
+    // 本体 jar には同梱されず、Jade 無し環境ではクラスがロードされる経路が無い
+    // （26.2 / 1.21.11 / 1.21.1 の各 neoforge セルと同じ構成）。
+    // version id aMkOTJX7 = 26.1.10+neoforge。Modrinth API で 26.1.2 対応を確認済み（2026-09-07）。
+    compileOnly 'maven.modrinth:nvQzSEkH:aMkOTJX7'
+}
+
 processResources {
     var expandProps = [
             'version'                     : version,
