@@ -1,7 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "${neoforge_loader_version_range}"
 license = "${license}"
-issueTrackerURL = "https://github.com/KURONAMI333/old-glass-photograph/issues"
+issueTrackerURL = "https://www.curseforge.com/minecraft/mc-mods/old-glass-photograph"
 
 [[mods]]
 modId = "${mod_id}"
