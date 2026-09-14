@@ -612,7 +612,7 @@ public final class PhotoCaptureClient {
         if (phase != Phase.PEEK || current == null) {
             return;
         }
-        // 覗いてから数秒で消す（2026-08-31 KURONAMI333「写真取るのに邪魔だぜ」）。
+        // 覗いてから数秒で消す（撮影中の視界を妨げないため）。
         // 読みは覗いた時に 1 回決まって以後変わらないので、経過 tick だけで足りる。
         int alpha = 255;
         if (peekElapsed >= READING_HOLD_TICKS) {

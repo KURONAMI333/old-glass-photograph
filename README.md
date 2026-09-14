@@ -1,93 +1,47 @@
 # Old Glass Photograph
 
-> Recreates 19th-century wet plate collodion photography as an in-world process. Nothing in the loop opens a menu or an inventory screen.
+Recreate wet plate collodion photography with a working camera, timed glass plates, light-sensitive exposures, and photographs saved with the world.
 
-[![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-lightgrey.svg)](LICENSE)
+The Wet Plate Camera stands two blocks tall with its lens near eye level. Aim it at a scene, then complete every step through blocks and items without opening a menu or inventory screen.
 
----
+## The process
 
-## Why Old Glass Photograph?
+- Coat a glass plate in a Darkroom Table. Open the lid, put the plate in, then close the lid while holding a Collodion Kit — four seconds later the plate is wet and sensitized. The dark place is the box itself, so the room around it can be as bright as you like.
+- A coated plate lasts 60 seconds. After that the collodion dries and the plate goes back to plain glass, so loading and shooting both have to happen inside that minute. If the exposure would outlast it, the shutter doesn't open at all — you get told instead of losing the shot.
+- Load the plate and right-click the camera to look through it. You have to be standing close behind it; from the front or the side it won't let you in. Frame the shot, then click again and the shutter opens. Exposure builds up as light times time and finishes on its own once it reaches the target — your view snaps back the moment it's done, so that's your cue. In open midday light that takes about 4 seconds. Anywhere dimmer takes longer. A beat marks off each second while the shutter is open.
+- Anything moving during the exposure comes out as a faint smear or disappears entirely. Anything holding still comes out solid.
+- Looking through the camera costs nothing and tells you in one line how the light looks: bright, soft, dim, or too dark to fill the plate. No numbers on screen. Sneak or walk to step back out without taking the shot; click during the exposure to close the shutter early and get an underexposed plate on purpose.
+- Develop the exposed plate back in the Darkroom Table — plate in, lid closed while holding Developer, another four seconds. Leave the lid open while the box is working and light gets to the plate.
+- Fix it in your hands. Hold the developed plate in one hand and Fixer in the other, then hold right-click for six seconds while the plate is shaken in the bath. That's where the photograph comes out.
 
-湿板カメラは高さ2ブロックのスタンド付きで、レンズの高さがだいたい目線に来る。それを景色に向けて設置すれば、あとは全てブロックとアイテムだけで進む工程:
+## What comes out
 
-1. ガラス板を暗室台で塗る。蓋を開けて板を入れ、Collodion Kit を手に持ったまま蓋を閉じると4秒で濡れた感光板になる。暗いのは箱の中なので、部屋の明るさは工程に一切効かない
-2. 塗った板が使えるのは60秒。過ぎるとコロジオンが乾いて素のガラス板に戻るので、装填も撮影もこの1分の中で終える必要がある。露光がこの期限をまたぐ場合はシャッターが開かない（黙って撮影機会を失うことはない）
-3. 板を装填してカメラを右クリックすると覗ける。覗けるのはカメラの後ろに立っている時だけで、正面や横からは入れない。構図が決まったら再度クリックするとシャッターが開く。露光は光量×時間で進み、目標に達すると自動で終わる（視界が戻った瞬間が合図）。屋外の真昼では約4秒、暗い場所ではもっとかかる。シャッターが開いている間は1秒ごとに拍が鳴る
-4. 露光中に動いた被写体は薄く滲むか消え、静止していた被写体ははっきり写る
-5. カメラを覗くのはノーコストで、光の状態を1行で教えてくれる（明るい／柔らかい／暗い／暗すぎる）。数値は出さない。スニークか歩いて離れれば撮影せず戻れる。露光中にクリックするとシャッターを早く閉じられ、意図的にアンダー露光の板を作れる
-6. 露光済みの板は暗室台で現像する。板を入れ、Developer を手に持ったまま蓋を閉じて4秒。工程が走っている間に蓋を開けると、その分だけ板に光が入る
-7. 定着は手元で行う。現像済みの板と Fixer を左右の手に1つずつ持ち、右クリック長押しで6秒振ると写真になる
+A black-and-white photograph, 256×256. It carries the name of whoever took it, which day of the world it was, and the real-world date and time it was developed. Frame it in an item frame and it stays there through a dedicated server restart — the image is saved with the world, not the session. Hold one up and right-click to look at it properly; you can keep walking while you do.
 
----
+## What doesn't go wrong
 
-## Features
+- Close the shutter the instant it opens and nothing was exposed. The exposure is cancelled and the plate isn't spent.
+- A plate that already holds an image blocks the camera from starting a new exposure, so you can't overwrite a photo by mistake.
+- A spot that's too dark (light level 7 or below) won't reach a full exposure even at the 12-second cap — you get an underexposed plate, not a ruined one.
+- Opening the darkroom lid while the box is working costs you neither the plate nor the image. The light that gets in settles as fog and comes out as heavier marks on the finished photograph, which is also how you age one on purpose.
+- A plate that dries out goes back to plain glass — you lose the chemical you poured, not the glass. Rinsing a plate in a water cauldron does the same at any stage, and it's the only way to give up on a developed plate without spending Fixer.
 
-- 📷 **湿板カメラ** — 設置位置と向きだけで構図が決まる。メニューもインベントリ画面も開かず、右クリックだけで覗く・撮る・閉じるが完結。覗けるのはカメラの後ろに立っている時だけ
-- 🕯️ **暗室台** — 塗布と現像はこの箱の中で回る。暗いのは箱の中なので周囲の明るさは関係なく、蓋を開けている間だけ板に光が入る
-- 🧪 **定着は手元で** — 現像済みの板と Fixer を左右の手に持って6秒振る。振っている間はアイテム欄のバーが溜まっていく
-- 🖼️ **完成写真は256×256の白黒画像** — 撮影者・世界の何日目か・現像した実世界の日時が刻まれる。額縁に入れればワールドと一緒に保存され、専用サーバーの再起動をまたいでも残る（保存先はセッションでなくワールド）
-- 🔍 **写真をじっくり見る面** — 手に持って右クリックすると大きく見られる。歩きながらでも見られる
-- 🚫 **失敗しても被害が出ない設計** — シャッターを開いた直後に閉じれば露光がキャンセルされるだけで板は消費されない。像が既にある板はカメラの新規露光をブロックするので、誤って上書きされることもない。光が足りない場所（光量7以下）は12秒の上限でもアンダー露光の板になるだけで、板が失われることはない。工程中に蓋を開けても板も像も失われず、かぶりとして写真の痕跡が濃くなるだけなので、わざと古びさせる遊びに使える
-- 🪣 **どの段階でも水入り大釜で洗える** — 素のガラス板に戻る。現像済みの板を Fixer を使わずに諦める唯一の経路
-- 🏆 **進捗8件** — うち3件は工程が上手くいかなかった時に手に入る
-
----
-
-## Installation
-
-1. NeoForge（Minecraft 26.2）を導入
-2. `old_glass_photograph-0.1.0-neoforge-26.2.jar` を `mods/` フォルダに放り込む
-
----
-
-## Configuration
-
-この MOD に設定項目は無い。既定の挙動がそのまま体験になる。
-
----
+Eight advancements follow the process, three of them for the ways it goes wrong.
 
 ## Compatibility
 
-NeoForge、Minecraft 26.2 のみに対応。描画はバニラの描画パイプラインだけを通るため、シェーダーは非対応。
+Shaders are supported — a plate records the scene the way you see it, so shader lighting and water reflections end up on the photograph.
 
 ---
 
-## FAQ
+Made for ModJam 2026 (Echoes of the Past).
 
-**Q. 撮影に失敗するとアイテムを失う？**  
-A. いいえ。シャッターを開いた直後に閉じれば露光はキャンセルされ、板は消費されません。少し進んでから閉じた場合はアンダー露光の写真になりますが、これは意図して選べる結果です。暗すぎる場所でもアンダー露光の板になるだけで、板自体が失われることはありません。
+All Rights Reserved. Modpack inclusion is allowed without permission or credit.
 
-**Q. 同じ板を何度も撮影に使い回せる？**  
-A. 一度像が写った板はカメラの新規露光をブロックします。誤って上書きする心配はありませんが、その板をもう一度使うこともできません。水入り大釜で洗えば素のガラス板には戻せます（像は残りません）。
+## Downloads and support
 
-**Q. シェーダーを入れていても写真の見た目は変わる？**  
-A. 変わりません。描画はバニラの描画パイプラインだけを通るため、シェーダー MOD の影響を受けません。
+Downloads: [CurseForge](https://www.curseforge.com/minecraft/mc-mods/old-glass-photograph).
 
-**Q. 各工程はどれくらいかかる？**  
-A. 塗布が4秒、露光が屋外の真昼で約4秒、現像が4秒、定着が6秒です。暗い場所は露光そのものが長くなります。塗った板が使えるのは60秒までなので、装填と撮影はその中で終える必要があります。
+For bugs and questions, comment on the [CurseForge page](https://www.curseforge.com/minecraft/mc-mods/old-glass-photograph) or DM [@kuronami333 on X](https://x.com/kuronami333).
 
-**Q. 完成した写真はサーバーを再起動しても消えない？**  
-A. 消えません。画像はセッションではなくワールドに保存されるので、専用サーバーの再起動をまたいでも残ります。
-
----
-
-## Bug Reports / Feature Requests
-
-GitHub Issues に投げてください: [Issues](https://github.com/KURONAMI333/old-glass-photograph/issues)
-
----
-
-## Translations
-
-9言語に対応（`en_us` / `ja_jp` / `de_de` / `es_es` / `fr_fr` / `ko_kr` / `pt_br` / `ru_ru` / `zh_cn`）。
-
-## License
-
-[All Rights Reserved](LICENSE) — modpack への同梱は自由（許可・クレジット不要）。単体での再配布と改変版の配布は不可。ソースは読めるように公開しています。
-
----
-
-## Credits
-
-- Author: KURONAMI
-- ModJam 2026 (Echoes of the Past) 向けに制作
+[Source](https://github.com/KURONAMI333/old-glass-photograph) · [License](LICENSE)

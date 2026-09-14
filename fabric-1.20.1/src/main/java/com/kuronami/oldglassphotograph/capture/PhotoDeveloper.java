@@ -99,7 +99,7 @@ public final class PhotoDeveloper {
 
         // 階調は地図と同じ階段に丸めるが、保存は写真アイテム自身のタグに持つ。
         // 地図データは 128x128 固定で、拡大した時の粗さがそのまま上限になっていた
-        // （2026-08-31 KURONAMI333 判定「ドットが粗すぎる」）。
+        // （2026-08-31 設計上の判断「ドットが粗すぎる」）。
         byte[] gray = PhotoMapPalette.quantizeAllToGray(traced);
         long imageId = level.getGameTime() * 1000L + level.getRandom().nextInt(1000);
 

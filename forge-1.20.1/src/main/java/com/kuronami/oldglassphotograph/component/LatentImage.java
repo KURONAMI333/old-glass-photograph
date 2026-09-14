@@ -27,7 +27,7 @@ public record LatentImage(byte[] pixels, int exposureTicks, int light) {
      * 1 辺の画素数。<b>写真の解像度はここ 1 箇所で決まる</b>（撮影の縮小・潜像・仕上がりの全部）。
      *
      * <p>128 だった頃は保存にバニラの地図データを使っていたので、地図の仕様で 128 が上限だった。
-     * 保存を自前のタグへ移したので上限が外れている（2026-08-31・KURONAMI333「ドットが粗すぎる」）。
+     * 保存を自前のタグへ移したので上限が外れている（解像度が表示品質の上限になるため）。
      */
     public static final int DIM = PhotographViewGeometry.PHOTO_PX;
 
