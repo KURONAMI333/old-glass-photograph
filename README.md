@@ -73,7 +73,7 @@ A. 消えません。画像はセッションではなくワールドに保存�
 
 ## Bug Reports / Feature Requests
 
-GitHub Issues に投げてください: [Issues](https://github.com/KURONAMI333/old-glass-photograph/issues)
+CurseForge のコメント欄か、X の [@kuronami333](https://x.com/kuronami333) の DM へお願いします: [old-glass-photograph](https://www.curseforge.com/minecraft/mc-mods/old-glass-photograph)
 
 ---
 
